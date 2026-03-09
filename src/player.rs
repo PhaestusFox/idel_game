@@ -1,4 +1,8 @@
-use bevy::prelude::*;
+use bevy::{
+    input::{common_conditions::input_just_pressed, mouse::AccumulatedMouseMotion},
+    prelude::*,
+    window::{CursorOptions, PrimaryWindow},
+};
 
 pub struct PlayerPlugin;
 
@@ -6,8 +10,14 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MoveBindings>()
             .init_resource::<FlyCameraSettings>()
-            .add_systems(Startup, spawn_player)
-            .add_systems(Update, move_player);
+            .add_systems(Startup, (spawn_player, toggle_cursor))
+            .add_systems(
+                Update,
+                (
+                    (player_look, move_player).chain(),
+                    toggle_cursor.run_if(input_just_pressed(KeyCode::Escape)),
+                ),
+            );
     }
 }
 
@@ -29,6 +39,9 @@ pub struct MoveBindings {
     pub backward: KeyCode,
     pub left: KeyCode,
     pub right: KeyCode,
+    pub fly_up: KeyCode,
+    pub fly_down: KeyCode,
+    pub boost: KeyCode,
 }
 
 impl Default for MoveBindings {
@@ -38,6 +51,9 @@ impl Default for MoveBindings {
             backward: KeyCode::KeyS,
             left: KeyCode::KeyA,
             right: KeyCode::KeyD,
+            fly_up: KeyCode::Space,
+            fly_down: KeyCode::ControlLeft,
+            boost: KeyCode::ShiftLeft,
         }
     }
 }
@@ -45,11 +61,19 @@ impl Default for MoveBindings {
 #[derive(Resource)]
 pub struct FlyCameraSettings {
     pub move_speed: f32,
+    pub look_sensitivity: f32,
+    pub invert_look_y: bool,
+    pub boost_multiplier: f32,
 }
 
 impl Default for FlyCameraSettings {
     fn default() -> Self {
-        Self { move_speed: 8.0 }
+        Self {
+            move_speed: 8.0,
+            look_sensitivity: 0.05,
+            invert_look_y: false,
+            boost_multiplier: 2.0,
+        }
     }
 }
 
@@ -85,6 +109,48 @@ fn move_player(
         input.x -= 1.0;
     }
 
-    let move_dir = (right * input.x + forward * input.y).normalize_or_zero();
+    let mut move_dir = (right * input.x + forward * input.y).normalize_or_zero();
+    if keyboard_input.pressed(move_bindings.fly_up) {
+        move_dir.y += 1.0;
+    }
+    if keyboard_input.pressed(move_bindings.fly_down) {
+        move_dir.y -= 1.0;
+    }
+    if keyboard_input.pressed(move_bindings.boost) {
+        move_dir *= settings.boost_multiplier;
+    }
     player.translation += move_dir * settings.move_speed * time.delta_secs();
+}
+
+fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+    match windows.grab_mode {
+        bevy::window::CursorGrabMode::None => {
+            windows.visible = false;
+            windows.grab_mode = bevy::window::CursorGrabMode::Confined;
+        }
+        bevy::window::CursorGrabMode::Confined | bevy::window::CursorGrabMode::Locked => {
+            windows.visible = true;
+            windows.grab_mode = bevy::window::CursorGrabMode::None;
+        }
+    }
+}
+
+fn player_look(
+    mouse_movement: Res<AccumulatedMouseMotion>,
+    mut player: Single<&mut Transform, With<PlayerEntity>>,
+    settings: Res<FlyCameraSettings>,
+    cursor: Single<&CursorOptions, With<PrimaryWindow>>,
+) {
+    if cursor.visible {
+        return;
+    }
+    let mut delta = mouse_movement.delta * settings.look_sensitivity;
+    if settings.invert_look_y {
+        delta.y = -delta.y;
+    }
+    let (mut yaw, mut pitch, _) = player.rotation.to_euler(EulerRot::YXZ);
+    yaw -= delta.x.to_radians();
+    pitch -= delta.y.to_radians();
+    pitch = pitch.clamp(-core::f32::consts::FRAC_PI_2, core::f32::consts::FRAC_PI_2);
+    player.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
 }
