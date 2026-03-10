@@ -4,20 +4,23 @@ use bevy::{
     window::{CursorOptions, PrimaryWindow},
 };
 
+use crate::GameState;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MoveBindings>()
             .init_resource::<FlyCameraSettings>()
-            .add_systems(Startup, (spawn_player, toggle_cursor))
+            .add_systems(Startup, spawn_player)
             .add_systems(
                 Update,
-                (
-                    (player_look, move_player).chain(),
-                    toggle_cursor.run_if(input_just_pressed(KeyCode::Escape)),
-                ),
-            );
+                ((player_look, move_player)
+                    .chain()
+                    .run_if(in_state(GameState::Playing)),),
+            )
+            .add_systems(OnEnter(GameState::Playing), hide_cursor)
+            .add_systems(OnExit(GameState::Playing), show_cursor);
     }
 }
 
@@ -126,7 +129,7 @@ fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
     match windows.grab_mode {
         bevy::window::CursorGrabMode::None => {
             windows.visible = false;
-            windows.grab_mode = bevy::window::CursorGrabMode::Confined;
+            windows.grab_mode = bevy::window::CursorGrabMode::Locked;
         }
         bevy::window::CursorGrabMode::Confined | bevy::window::CursorGrabMode::Locked => {
             windows.visible = true;
@@ -141,7 +144,7 @@ fn player_look(
     settings: Res<FlyCameraSettings>,
     cursor: Single<&CursorOptions, With<PrimaryWindow>>,
 ) {
-    if cursor.visible {
+    if matches!(cursor.grab_mode, bevy::window::CursorGrabMode::None) {
         return;
     }
     let mut delta = mouse_movement.delta * settings.look_sensitivity;
@@ -153,4 +156,14 @@ fn player_look(
     pitch -= delta.y.to_radians();
     pitch = pitch.clamp(-core::f32::consts::FRAC_PI_2, core::f32::consts::FRAC_PI_2);
     player.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+}
+
+pub fn show_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+    windows.visible = true;
+    windows.grab_mode = bevy::window::CursorGrabMode::None;
+}
+
+pub fn hide_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+    windows.visible = false;
+    windows.grab_mode = bevy::window::CursorGrabMode::Locked;
 }

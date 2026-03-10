@@ -27,7 +27,7 @@ fn spawn_test_cube(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 #[derive(States, Debug, Clone, Hash, PartialEq, Eq, Default)]
-enum GameState {
+pub enum GameState {
     #[default]
     InMenu,
     Playing,
