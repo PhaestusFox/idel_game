@@ -1,16 +1,19 @@
 use bevy::{color::palettes::css::RED, prelude::*};
 use player::PlayerPlugin;
+use ui::UiPlugin;
 
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
-    app.add_plugins(PlayerPlugin);
+    app.add_plugins((PlayerPlugin, UiPlugin, map::MapPlugin));
     app.add_systems(Startup, spawn_test_cube);
+    app.init_state::<GameState>();
     app.run();
 }
 
 mod map;
 mod player;
+mod ui;
 
 fn spawn_test_cube(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
@@ -21,4 +24,11 @@ fn spawn_test_cube(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })),
     ));
+}
+
+#[derive(States, Debug, Clone, Hash, PartialEq, Eq, Default)]
+enum GameState {
+    #[default]
+    InMenu,
+    Playing,
 }
