@@ -43,6 +43,7 @@ fn open_camera_settings_menu(
                     .insert(SliderValue(settings.look_sensitivity));
             },
         ),
+        dso.clone(),
     ));
 
     root.with_child((
@@ -64,6 +65,7 @@ fn open_camera_settings_menu(
                     .insert(SliderValue(settings.move_speed));
             },
         ),
+        dso.clone(),
     ));
 
     root.with_child((
@@ -85,6 +87,7 @@ fn open_camera_settings_menu(
                     .insert(SliderValue(settings.boost_multiplier));
             },
         ),
+        dso.clone(),
     ));
 
     let invert_look_y = root.with_child((
