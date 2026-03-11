@@ -8,3 +8,7 @@ bevy = {git = "https://github.com/bevyengine/bevy.git", features = ["experimenta
 const-siphasher = "1.0.2"
 ron = "*"
 serde = { version = "1.0", features = ["derive"] }
+rand = "*"
+
+[profile.dev.package."*"]
+optlev = 3

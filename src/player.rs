@@ -75,7 +75,7 @@ impl Default for FlyCameraSettings {
             move_speed: 8.0,
             look_sensitivity: 0.05,
             invert_look_y: false,
-            boost_multiplier: 2.0,
+            boost_multiplier: 10.0,
         }
     }
 }

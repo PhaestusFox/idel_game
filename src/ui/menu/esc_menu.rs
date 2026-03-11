@@ -15,6 +15,7 @@ fn open_escape(mut commands: Commands, root: Single<Entity, With<MenuRoot>>) {
     let open_settings =
         MenuAction::from_commands(&mut commands, open_menu::<settings_menu::SettingsMenu>());
     let dso = DespawnOnExit(EscapeMenu::id());
+    let open_debug = MenuAction::from_commands(&mut commands, open_menu::<debug::DebugMenu>());
 
     commands.entity(*root).insert(children![
         button(
@@ -32,6 +33,14 @@ fn open_escape(mut commands: Commands, root: Single<Entity, With<MenuRoot>>) {
             },
             (dso.clone(), open_settings),
             Spawn((Text::new("Settings"), ThemedText))
+        ),
+        button(
+            ButtonProps {
+                variant: ButtonVariant::Normal,
+                corners: feathers::rounded_corners::RoundedCorners::Bottom,
+            },
+            (dso.clone(), open_debug),
+            Spawn((Text::new("Debug Menu"), ThemedText))
         ),
         button(
             ButtonProps {

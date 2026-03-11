@@ -5,8 +5,13 @@ use bevy::ecs::system::SystemId;
 use bevy::feathers;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::{color::palettes::css::*, ecs::world::DeferredWorld, feathers::theme::ThemedText};
+use bevy::{
+    ui::Checked,
+    ui_widgets::{SliderPrecision, SliderStep, SliderValue, ValueChange, observe},
+};
 use feathers::controls::*;
 
+mod debug;
 mod esc_menu;
 mod main;
 mod settings_menu;
@@ -26,6 +31,7 @@ impl Plugin for MenuPlugin {
             .add_menu::<settings_menu::SettingsMenu>()
             .add_menu::<NoMenu>()
             .init_resource::<MenuStack>()
+            .add_menu::<debug::DebugMenu>()
             .add_observer(on_press);
         app.add_systems(
             OnEnter(GameState::InMenu),

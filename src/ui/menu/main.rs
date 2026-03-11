@@ -1,5 +1,3 @@
-use bevy::feathers::theme::ThemedText;
-
 pub use super::*;
 
 #[derive(Resource)]
