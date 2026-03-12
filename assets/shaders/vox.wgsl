@@ -36,12 +36,33 @@ const chunk_size: f32 = 32.;
 fn fragment(
     mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {
-    var pos = floor(mesh.world_position.xyz + mesh.world_normal * 0.5);
-    let sample_pos = ((pos % chunk_size + lod) + chunk_size) % chunk_size;
-    let c = textureSample(material_color_texture, material_color_sampler, sample_pos / (chunk_size * lod));
+    var offset = sign(mesh.world_normal);
+    var pos = floor(mesh.world_position.xyz - mesh.world_normal * 0.5);
+    var sample_pos = ((pos % chunk_size) + chunk_size) % chunk_size;
+    sample_pos /= lod;
+    sample_pos = floor(sample_pos) * lod + lod * 0.5 - offset * 0.5;
+    sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
+    let c = textureSample(material_color_texture, material_color_sampler, sample_pos / chunk_size);
+    var l: f32 = 0.;
+    
+
+    if mesh.world_normal.y > 0.5 {
+        l = 0.75; // bottom
+    } else if mesh.world_normal.y < -0.5 {
+        l = 1; // top
+    } else if mesh.world_normal.x > 0.5 {
+        l = 0.85; // right
+    } else if mesh.world_normal.x < -0.5 {
+        l = 0.95; // left
+    } else if mesh.world_normal.z > 0.5 {
+        l = 0.90; // front
+    } else {
+        l = 0.80; // back
+    }
+
     if c.a < 0.2 {
         discard;
     } else {
-        return c;
+        return c * vec4(vec3(l), 1.);
     }
 }

@@ -25,7 +25,7 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component)]
-struct PlayerEntity;
+pub struct PlayerEntity;
 
 fn spawn_player(mut commands: Commands) {
     commands.spawn((
@@ -33,6 +33,11 @@ fn spawn_player(mut commands: Commands) {
         Camera3d::default(),
         Transform::from_xyz(0.0, 3.0, 6.0).looking_at(Vec3::ZERO, Vec3::Y),
         PlayerEntity,
+        DistanceFog {
+            color: Color::srgb(0.25, 0.25, 0.25),
+            falloff: FogFalloff::Exponential { density: 0.5 },
+            ..default()
+        },
     ));
 }
 
@@ -72,10 +77,10 @@ pub struct FlyCameraSettings {
 impl Default for FlyCameraSettings {
     fn default() -> Self {
         Self {
-            move_speed: 8.0,
+            move_speed: 32.,
             look_sensitivity: 0.05,
             invert_look_y: false,
-            boost_multiplier: 10.0,
+            boost_multiplier: 33.0,
         }
     }
 }
