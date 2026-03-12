@@ -26,9 +26,9 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -1..=1 {
-        for y in 0..1 {
-            for z in -1..=1 {
+    for x in -16..=16 {
+        for y in -8..2 {
+            for z in -8..=8 {
                 if z == 1 && x == 1 {
                     continue;
                 }
@@ -61,9 +61,9 @@ impl FromWorld for MeshGenerator {
             .id();
         let asset_server = world.resource::<AssetServer>();
         let mut lods = Vec::new();
-        for lod in [LoD::LOD1, LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
-            lods.push(asset_server.add(make_baked_mesh_lod(lod)));
-        }
+        // for lod in [LoD::LOD1, LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
+        //     lods.push(asset_server.add(make_baked_mesh_lod(lod)));
+        // }
 
         Self {
             root,

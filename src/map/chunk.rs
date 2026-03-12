@@ -7,10 +7,10 @@ use bevy::{
 use rand::{RngExt, SeedableRng};
 
 pub const CHUNK_SIZE: usize = 32;
-const STEP: f64 = 1. / CHUNK_SIZE as f64;
+const STEP: f64 = 2. / CHUNK_SIZE as f64;
 // pub const TLC: f32 = 31.9990024566650390625; // this is CHUNK_SIZE - 0.001 + 1 bit
 pub const TRC: f32 = 0.99999;
-pub const BLC: f32 = -0.99999;
+pub const BLC: f32 = -0.9999;
 
 use crate::map::map_gen::MapDescriptor;
 
@@ -109,8 +109,8 @@ pub fn make_baked_mesh() -> Mesh {
     const OFFSET: f32 = 0.01;
 
     for z in 0..CHUNK_SIZE {
-        let o = (STEP * z as f64) as f32;
-        let b = (STEP * (z + 1) as f64) as f32;
+        let o = (-1f64 + (STEP * z as f64)) as f32;
+        let b = (-1f64 + (STEP * (z + 1) as f64)) as f32;
         vertices.extend([[BLC, BLC, o], [BLC, TRC, o], [TRC, TRC, o], [TRC, BLC, o]]);
         vertices.extend([[BLC, BLC, b], [BLC, TRC, b], [TRC, TRC, b], [TRC, BLC, b]]);
         let n = [
@@ -145,8 +145,8 @@ pub fn make_baked_mesh() -> Mesh {
     }
     let x_off = vertices.len() as u16;
     for x in 0..CHUNK_SIZE {
-        let o = (STEP * x as f64) as f32;
-        let b = (STEP * (x + 1) as f64) as f32;
+        let o = (-1f64 + (STEP * x as f64)) as f32;
+        let b = (-1f64 + (STEP * (x + 1) as f64)) as f32;
         vertices.extend([[o, BLC, BLC], [o, BLC, TRC], [o, TRC, TRC], [o, TRC, BLC]]);
         vertices.extend([[b, BLC, BLC], [b, BLC, TRC], [b, TRC, TRC], [b, TRC, BLC]]);
         let n = [
@@ -182,8 +182,8 @@ pub fn make_baked_mesh() -> Mesh {
     }
     let y_off = vertices.len() as u16;
     for y in 0..CHUNK_SIZE {
-        let o = (STEP * y as f64) as f32;
-        let b = (STEP * (y + 1) as f64) as f32;
+        let o = (-1f64 + (STEP * y as f64)) as f32;
+        let b = (-1f64 + (STEP * (y + 1) as f64)) as f32;
         vertices.extend([[BLC, o, BLC], [TRC, o, BLC], [TRC, o, TRC], [BLC, o, TRC]]);
         vertices.extend([[BLC, b, BLC], [TRC, b, BLC], [TRC, b, TRC], [BLC, b, TRC]]);
         normals.extend(
