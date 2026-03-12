@@ -9,7 +9,8 @@ use rand::{RngExt, SeedableRng};
 pub const CHUNK_SIZE: usize = 32;
 const STEP: f64 = 1. / CHUNK_SIZE as f64;
 // pub const TLC: f32 = 31.9990024566650390625; // this is CHUNK_SIZE - 0.001 + 1 bit
-pub const TLC: f32 = 1.;
+pub const TRC: f32 = 0.99999;
+pub const BLC: f32 = -0.99999;
 
 use crate::map::map_gen::MapDescriptor;
 
@@ -110,20 +111,17 @@ pub fn make_baked_mesh() -> Mesh {
     for z in 0..CHUNK_SIZE {
         let o = (STEP * z as f64) as f32;
         let b = (STEP * (z + 1) as f64) as f32;
-        vertices.extend([[0., 0., o], [0., TLC, o], [TLC, TLC, o], [TLC, 0., o]]);
-        vertices.extend([[0., 0., b], [0., TLC, b], [TLC, TLC, b], [TLC, 0., b]]);
-        // let offset = (-o + CHUNK_SIZE as f32 * 0.5) / CORRECTION_SCALE;
-        // let offset = offset * offset;
-        let offset = 0.00;
+        vertices.extend([[BLC, BLC, o], [BLC, TRC, o], [TRC, TRC, o], [TRC, BLC, o]]);
+        vertices.extend([[BLC, BLC, b], [BLC, TRC, b], [TRC, TRC, b], [TRC, BLC, b]]);
         let n = [
-            [offset, offset, -1.],
-            [offset, -offset, -1.],
-            [-offset, -offset, -1.],
-            [-offset, offset, -1.],
-            [offset, offset, 1.],
-            [offset, -offset, 1.],
-            [-offset, -offset, 1.],
-            [-offset, offset, 1.],
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
         ]
         .map(|v| Vec3::from(v).normalize_or_zero().to_array());
         normals.extend(n);
@@ -137,110 +135,88 @@ pub fn make_baked_mesh() -> Mesh {
             offset,
             offset + 2,
             offset + 3,
-            // offset + 4, // 0
-            // offset + 6, // 2
-            // offset + 5, // 1
-            // offset + 4, // 0
-            // offset + 7, // 3
-            // offset + 6, // 2
+            offset + 4, // 0
+            offset + 6, // 2
+            offset + 5, // 1
+            offset + 4, // 0
+            offset + 7, // 3
+            offset + 6, // 2
         ]);
     }
-    // let x_off = vertices.len() as u16;
-    // for x in 0..CHUNK_SIZE {
-    //     let x = x as f32;
-    //     vertices.extend([
-    //         [x, 0., 0.],
-    //         [x, 0., CHUNK_SIZE as f32],
-    //         [x, CHUNK_SIZE as f32, CHUNK_SIZE as f32],
-    //         [x, CHUNK_SIZE as f32, 0.],
-    //     ]);
-    //     vertices.extend([
-    //         [1. + x, 0., 0.],
-    //         [1. + x, 0., CHUNK_SIZE as f32],
-    //         [1. + x, CHUNK_SIZE as f32, CHUNK_SIZE as f32],
-    //         [1. + x, CHUNK_SIZE as f32, 0.],
-    //     ]);
-    //     let offset = -(x + CHUNK_SIZE as f32 * 0.5) / CORRECTION_SCALE;
-    //     // let offset = offset * offset;
-    //     let n = [
-    //         [-1., offset, offset],
-    //         [-1., offset, -offset],
-    //         [-1., -offset, -offset],
-    //         [-1., -offset, offset],
-    //         [1., offset, offset],
-    //         [1., offset, -offset],
-    //         [1., -offset, -offset],
-    //         [1., -offset, offset],
-    //     ]
-    //     .map(|v| Vec3::from(v).normalize_or_zero().to_array());
+    let x_off = vertices.len() as u16;
+    for x in 0..CHUNK_SIZE {
+        let o = (STEP * x as f64) as f32;
+        let b = (STEP * (x + 1) as f64) as f32;
+        vertices.extend([[o, BLC, BLC], [o, BLC, TRC], [o, TRC, TRC], [o, TRC, BLC]]);
+        vertices.extend([[b, BLC, BLC], [b, BLC, TRC], [b, TRC, TRC], [b, TRC, BLC]]);
+        let n = [
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+        ]
+        .map(|v| Vec3::from(v).normalize_or_zero().to_array());
 
-    //     normals.extend(n);
-    // }
-    // for x in 0..CHUNK_SIZE {
-    //     let offset = x_off + x as u16 * 8;
-    //     indices.extend([
-    //         offset,
-    //         offset + 1,
-    //         offset + 2,
-    //         offset,
-    //         offset + 2,
-    //         offset + 3,
-    //         offset + 4, // 0
-    //         offset + 6, // 2
-    //         offset + 5, // 1
-    //         offset + 4, // 0
-    //         offset + 7, // 3
-    //         offset + 6, // 2
-    //     ]);
-    // }
-    // let y_off = vertices.len() as u16;
-    // for y in 0..CHUNK_SIZE {
-    //     let y = y as f32;
-    //     vertices.extend([
-    //         [0., y, 0.],
-    //         [CHUNK_SIZE as f32, y, 0.],
-    //         [CHUNK_SIZE as f32, y, CHUNK_SIZE as f32],
-    //         [0., y, CHUNK_SIZE as f32],
-    //     ]);
-    //     vertices.extend([
-    //         [0., 1. + y, 0.],
-    //         [CHUNK_SIZE as f32, 1. + y, 0.],
-    //         [CHUNK_SIZE as f32, 1. + y, CHUNK_SIZE as f32],
-    //         [0., 1. + y, CHUNK_SIZE as f32],
-    //     ]);
-    //     let offset = -(y + CHUNK_SIZE as f32 * 0.5) / CORRECTION_SCALE;
-    //     // let offset = offset * offset;
-    //     normals.extend(
-    //         [
-    //             [offset, -1.0, offset],
-    //             [-offset, -1.0, offset],
-    //             [-offset, -1.0, -offset],
-    //             [offset, -1.0, -offset],
-    //             [offset, 1.0, offset],
-    //             [-offset, 1.0, offset],
-    //             [-offset, 1.0, -offset],
-    //             [offset, 1.0, -offset],
-    //         ]
-    //         .map(|v| Vec3::from(v).normalize_or_zero().to_array()),
-    //     );
-    // }
-    // for y in 0..CHUNK_SIZE {
-    //     let offset = y_off + y as u16 * 8;
-    //     indices.extend([
-    //         offset,
-    //         offset + 1,
-    //         offset + 2,
-    //         offset,
-    //         offset + 2,
-    //         offset + 3,
-    //         offset + 4, // 0
-    //         offset + 6, // 2
-    //         offset + 5, // 1
-    //         offset + 4, // 0
-    //         offset + 7, // 3
-    //         offset + 6, // 2
-    //     ]);
-    // }
+        normals.extend(n);
+    }
+    for x in 0..CHUNK_SIZE {
+        let offset = x_off + x as u16 * 8;
+        indices.extend([
+            offset,
+            offset + 1,
+            offset + 2,
+            offset,
+            offset + 2,
+            offset + 3,
+            offset + 4, // 0
+            offset + 6, // 2
+            offset + 5, // 1
+            offset + 4, // 0
+            offset + 7, // 3
+            offset + 6, // 2
+        ]);
+    }
+    let y_off = vertices.len() as u16;
+    for y in 0..CHUNK_SIZE {
+        let o = (STEP * y as f64) as f32;
+        let b = (STEP * (y + 1) as f64) as f32;
+        vertices.extend([[BLC, o, BLC], [TRC, o, BLC], [TRC, o, TRC], [BLC, o, TRC]]);
+        vertices.extend([[BLC, b, BLC], [TRC, b, BLC], [TRC, b, TRC], [BLC, b, TRC]]);
+        normals.extend(
+            [
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ]
+            .map(|v| Vec3::from(v).normalize_or_zero().to_array()),
+        );
+    }
+    for y in 0..CHUNK_SIZE {
+        let offset = y_off + y as u16 * 8;
+        indices.extend([
+            offset,
+            offset + 1,
+            offset + 2,
+            offset,
+            offset + 2,
+            offset + 3,
+            offset + 4, // 0
+            offset + 6, // 2
+            offset + 5, // 1
+            offset + 4, // 0
+            offset + 7, // 3
+            offset + 6, // 2
+        ]);
+    }
 
     mesh.insert_indices(bevy::mesh::Indices::U16(indices));
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);

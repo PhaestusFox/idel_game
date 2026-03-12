@@ -147,8 +147,11 @@ impl MeshGenerator {
                         color_texture: None,
                         alpha_mode: AlphaMode::Opaque,
                     })),
-                    Transform::from_translation((chunk * CHUNK_SIZE as i32).as_vec3())
-                        .with_scale(Vec3::splat(CHUNK_SIZE as f32)),
+                    Transform::from_translation(
+                        (chunk * CHUNK_SIZE as i32).as_vec3()
+                            + Vec3::splat(CHUNK_SIZE as f32 * 0.5),
+                    )
+                    .with_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
                     ChildOf(self.root),
                 ))
                 .id();
