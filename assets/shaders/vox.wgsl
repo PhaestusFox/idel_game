@@ -37,6 +37,11 @@ const chunk_size: f32 = 32.;
 fn fragment(
     mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {
+    /// calc chunk id for world position
+    /// calc chunk offset
+    /// sub offset from world position to get local position
+    /// workout what voxel you are
+    /// shift by 0.5 away from edge so the sampler takes from middle of the voxel not the edge and wraps
     var pos = mesh.world_position.xyz - chunk_offset;
     var offset = sign(mesh.world_normal) * 0.5;
     pos = floor(pos - offset);
