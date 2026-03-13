@@ -1,9 +1,10 @@
 const ERROR_COLOR: vec4<f32> = vec4<f32>(1.0, 0.0, 1.0,1.);
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_3d<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: f32;
 @group(#{MATERIAL_BIND_GROUP}) @binding(4) var<uniform> chunk_offset: vec3<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(5) var<uniform> data: array<vec4<u32>,  (16 * 16 * 16) / 4>;
 
 struct VertexOutput {
     // This is `clip position` when the struct is used as a vertex stage output
@@ -31,7 +32,8 @@ struct VertexOutput {
 #endif
 }
 
-const chunk_size: f32 = 32.;
+const chunk_size: f32 = 16.;
+
 
 @fragment
 fn fragment(
@@ -69,7 +71,34 @@ fn fragment(
     };
     sample_pos /= chunk_size;
     // sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
-    var c = textureSample(material_color_texture, material_color_sampler, sample_pos);
+    // var c = textureSample(material_color_texture, material_color_sampler, sample_pos);
+    let x = u32(pos.x);
+    let index = (u32(pos.z) * u32(chunk_size) * u32(chunk_size) + u32(pos.y) * u32(chunk_size) + x) / 4u;
+    let block_data = data[index];
+    var block_id: u32 = 0;
+    switch (x % 4u) {
+        case 0u: {
+            block_id = block_data.x;
+        }
+        case 1: {
+            block_id = block_data.y;
+        }
+        case 2: {
+            block_id = block_data.z;
+        }
+        case 3: {
+            block_id = block_data.w;
+        }
+        default: {
+            block_id = block_data.x;
+        }
+    };
+    if block_id == 0u {
+        discard;
+    }
+    let c = textureSample(material_color_texture, material_color_sampler, vec2(f32(block_id) / 255., 0.5));
+
+
     var l: f32 = 0.;
     
 

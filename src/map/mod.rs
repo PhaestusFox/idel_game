@@ -116,6 +116,7 @@ impl MeshGenerator {
             .take(pool.thread_num() * 4)
             .cloned()
             .collect::<Vec<_>>();
+        let colors = asset_server.load("colors.png");
         println!("Generating {} chunks", que.len());
         for chunk in que {
             self.que.swap_remove(&chunk);
@@ -143,9 +144,10 @@ impl MeshGenerator {
                     Mesh3d(mesh),
                     MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
                         lod: lod.step(),
-                        color_texture: None,
+                        color_texture: Some(colors.clone()),
                         alpha_mode: AlphaMode::Opaque,
                         chunk_offset: Vec3::ZERO,
+                        data: ChunkData::empty(),
                     })),
                     Transform::from_translation(
                         (chunk * CHUNK_SIZE as i32).as_vec3()
@@ -203,16 +205,16 @@ fn update_mesh_generator(
                 continue;
             };
             let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
-            let chunk = Chunk {
-                data: asset_server.add(data),
-            };
+            // let chunk = Chunk {
+            //     data: asset_server.add(data),
+            // };
             let Some(material) = mashes.get_mut(material.id()) else {
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
-            material.color_texture = Some(asset_server.add(image));
             material.chunk_offset = chunk_id.offset();
-            commands.entity(id).insert(chunk);
+            material.data = data;
+            // commands.entity(id).insert(chunk);
         } else {
             keep.insert(id, task);
         }
@@ -262,5 +264,36 @@ impl Block {
             Block::Other(val) => return Color::hsl(*val as f32 * (1. / 360.), 1., 0.5),
         }
         .into()
+    }
+    fn id(&self) -> u32 {
+        match self {
+            Block::Void => 0,
+            Block::Grass => 1,
+            Block::Dirt => 2,
+            Block::Stone => 3,
+            Block::BedRock => 4,
+            Block::Snow => 5,
+            Block::Sand => 6,
+            Block::Other(val) => 0x80000000 | (*val as u32),
+        }
+    }
+    fn from_id(id: u32) -> Self {
+        match id {
+            0 => Block::Void,
+            1 => Block::Grass,
+            2 => Block::Dirt,
+            3 => Block::Stone,
+            4 => Block::BedRock,
+            5 => Block::Snow,
+            6 => Block::Sand,
+            other => {
+                if other & 0x80000000 != 0 {
+                    Block::Other((other & 0x7FFFFFFF) as u8)
+                } else {
+                    error!("Invalid block id: {}", other);
+                    Block::Void
+                }
+            }
+        }
     }
 }

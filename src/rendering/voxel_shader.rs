@@ -4,13 +4,15 @@ use bevy::{
     prelude::*, reflect::TypePath, render::render_resource::AsBindGroup, shader::ShaderRef,
 };
 
+use crate::map::ChunkData;
+
 /// This example uses a shader source file from the assets subdirectory
 const SHADER_ASSET_PATH: &str = "shaders/vox.wgsl";
 
 // This struct defines the data that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct CustomMaterial {
-    #[texture(1, dimension = "3d")]
+    #[texture(1, dimension = "2d")]
     #[sampler(2)]
     pub color_texture: Option<Handle<Image>>,
     pub alpha_mode: AlphaMode,
@@ -18,6 +20,8 @@ pub struct CustomMaterial {
     pub lod: f32,
     #[uniform(4)]
     pub chunk_offset: Vec3,
+    #[uniform(5)]
+    pub data: ChunkData,
 }
 
 /// The Material trait is very configurable, but comes with sensible defaults for all methods.
