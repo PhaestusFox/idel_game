@@ -26,12 +26,9 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in 0..=16 {
-        for y in 0..2 {
-            for z in 0..=8 {
-                if z == 1 && x == 1 {
-                    continue;
-                }
+    for x in -16..=64 {
+        for y in 0..=4 {
+            for z in -32..=32 {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
         }
@@ -46,6 +43,7 @@ struct MeshGenerator {
     new_tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
     root: Entity,
     dirty: bool,
+    max_chunk_tasks: usize,
     que: IndexSet<IVec3>,
     world: Arc<RwLock<map_gen::MapDescriptor>>,
 }
@@ -61,9 +59,9 @@ impl FromWorld for MeshGenerator {
             .id();
         let asset_server = world.resource::<AssetServer>();
         let mut lods = Vec::new();
-        // for lod in [LoD::LOD1, LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
-        //     lods.push(asset_server.add(make_baked_mesh_lod(lod)));
-        // }
+        for lod in [LoD::LOD1, LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
+            lods.push(asset_server.add(make_baked_mesh_lod(lod)));
+        }
 
         Self {
             root,
@@ -73,6 +71,7 @@ impl FromWorld for MeshGenerator {
             new_tasks: HashMap::default(),
             que: IndexSet::default(),
             dirty: false,
+            max_chunk_tasks: 100,
             world: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
         }
     }
@@ -130,9 +129,9 @@ impl MeshGenerator {
                 LoD::LOD1
             } else if dis < 32. {
                 LoD::LOD2
-            } else if dis < 64. {
+            } else if dis < 48. {
                 LoD::LOD4
-            } else if dis < 128. {
+            } else if dis < 64. {
                 LoD::LOD8
             } else {
                 LoD::LOD16
@@ -194,6 +193,7 @@ fn update_mesh_generator(
     chunks: Query<(&ChunkId, &MeshMaterial3d<CustomMaterial>)>,
     mut mashes: ResMut<Assets<CustomMaterial>>,
     player: Single<&Transform, With<crate::player::PlayerEntity>>,
+    mut done: Local<bool>,
 ) {
     let mut keep = HashMap::default();
     for (id, task) in mesh_generator.tasks.drain() {
@@ -218,5 +218,49 @@ fn update_mesh_generator(
         }
     }
     mesh_generator.tasks = keep;
+    if mesh_generator.tasks.is_empty() && !*done && mesh_generator.que.is_empty() {
+        println!("All chunks generated");
+        *done = true;
+    }
+    if !mesh_generator.que.is_empty() {
+        *done = false;
+    }
+    if mesh_generator.tasks.len() > mesh_generator.max_chunk_tasks {
+        return;
+    }
     mesh_generator.generate(&mut commands, asset_server, player.translation);
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[repr(u8)]
+pub enum Block {
+    Void = 0,
+    Grass = 1,
+    Dirt = 2,
+    Stone = 3,
+    BedRock = 4,
+    Snow = 5,
+    Sand = 6,
+    Other(u8),
+}
+
+impl Block {
+    fn is_solid(&self) -> bool {
+        matches!(self, Block::Void) == false
+    }
+    fn color(&self) -> Color {
+        use bevy::color::palettes::css::*;
+        use bevy::color::palettes::tailwind::*;
+        match self {
+            Block::Void => return Color::linear_rgba(0., 0., 0., 0.),
+            Block::Grass => GREEN,
+            Block::Dirt => BROWN,
+            Block::Stone => GRAY_500,
+            Block::BedRock => GRAY,
+            Block::Snow => WHITE,
+            Block::Sand => SANDY_BROWN,
+            Block::Other(val) => return Color::hsl(*val as f32 * (1. / 360.), 1., 0.5),
+        }
+        .into()
+    }
 }

@@ -19,20 +19,20 @@ use super::*;
 
 #[derive(Asset, TypePath)]
 pub struct ChunkData {
-    blocks: [u8; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
+    blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
 }
 
 impl ChunkData {
     pub fn test() -> Self {
-        let mut data = [0; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+        let mut data = [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
         for z in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for x in 0..CHUNK_SIZE {
                     let i = z * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + x;
                     if y < CHUNK_SIZE / 2 {
-                        data[i] = rand::random();
+                        data[i] = Block::Other(rand::random());
                     } else {
-                        data[i] = 0;
+                        data[i] = Block::Void;
                     }
                 }
             }
@@ -63,10 +63,7 @@ impl ChunkData {
             for x in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
                     let i = z * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + x;
-                    let mut color = Color::hsl(self.blocks[i] as f32, 1., 0.5);
-                    if self.blocks[i] == 0 {
-                        color.set_alpha(0.);
-                    }
+                    let mut color = self.blocks[i].color();
                     image
                         .set_color_at_3d(x as u32, y as u32, z as u32, color)
                         .unwrap();
@@ -78,7 +75,7 @@ impl ChunkData {
     }
 
     pub fn generate(pos: IVec3, map_descriptor: &MapDescriptor) -> (Self, Image) {
-        let mut data = [0; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+        let mut data = [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
         for z in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for x in 0..CHUNK_SIZE {
@@ -246,31 +243,28 @@ pub fn make_baked_mesh_lod(lod: LoD) -> Mesh {
 
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
-    let mut color = Vec::new();
     let mut indices = Vec::new();
-    let mut uv = Vec::new();
+    let stride = CHUNK_SIZE / lod.step() as usize;
 
-    let s = lod.step() as usize;
-
-    for z in 0..CHUNK_SIZE / s {
-        let z = (z * s) as f32;
-        vertices.extend([
-            [0., 0., z],
-            [0., CHUNK_SIZE as f32, z],
-            [CHUNK_SIZE as f32, CHUNK_SIZE as f32, z],
-            [CHUNK_SIZE as f32, 0., z],
-        ]);
-        let z = z + lod.step();
-        vertices.extend([
-            [0., 0., z],
-            [0., CHUNK_SIZE as f32, z],
-            [CHUNK_SIZE as f32, CHUNK_SIZE as f32, z],
-            [CHUNK_SIZE as f32, 0., z],
-        ]);
-        normals.extend([[0., 0., 1.]; 4]);
-        normals.extend([[0., 0., -1.]; 4]);
+    for z in 0..stride {
+        let o = (-1f64 + (STEP * z as f64 * lod.step() as f64)) as f32;
+        let b = (-1f64 + (STEP * (z + 1) as f64 * lod.step() as f64)) as f32;
+        vertices.extend([[BLC, BLC, o], [BLC, TRC, o], [TRC, TRC, o], [TRC, BLC, o]]);
+        vertices.extend([[BLC, BLC, b], [BLC, TRC, b], [TRC, TRC, b], [TRC, BLC, b]]);
+        let n = [
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., -1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
+            [0., 0., 1.],
+        ]
+        .map(|v| Vec3::from(v).normalize_or_zero().to_array());
+        normals.extend(n);
     }
-    for z in 0..CHUNK_SIZE / s {
+    for z in 0..stride {
         let offset = z as u16 * 8;
         indices.extend([
             offset,
@@ -288,27 +282,26 @@ pub fn make_baked_mesh_lod(lod: LoD) -> Mesh {
         ]);
     }
     let x_off = vertices.len() as u16;
-    for x in 0..CHUNK_SIZE / s {
-        let x = (x * s) as f32;
-        vertices.extend([
-            [x, 0., 0.],
-            [x, 0., CHUNK_SIZE as f32],
-            [x, CHUNK_SIZE as f32, CHUNK_SIZE as f32],
-            [x, CHUNK_SIZE as f32, 0.],
-        ]);
-        let x = x + lod.step();
-        vertices.extend([
-            [x, 0., 0.],
-            [x, 0., CHUNK_SIZE as f32],
-            [x, CHUNK_SIZE as f32, CHUNK_SIZE as f32],
-            [x, CHUNK_SIZE as f32, 0.],
-        ]);
-        normals.extend([[1., 0., 0.]; 4]);
-        normals.extend([[-1., 0., 0.]; 4]);
-        color.extend([[1., 0., 0., 1.]; 8]);
-        uv.extend([[0., 0.]; 4]);
+    for x in 0..stride {
+        let o = (-1f64 + (STEP * x as f64 * lod.step() as f64)) as f32;
+        let b = (-1f64 + (STEP * (x + 1) as f64 * lod.step() as f64)) as f32;
+        vertices.extend([[o, BLC, BLC], [o, BLC, TRC], [o, TRC, TRC], [o, TRC, BLC]]);
+        vertices.extend([[b, BLC, BLC], [b, BLC, TRC], [b, TRC, TRC], [b, TRC, BLC]]);
+        let n = [
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [-1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+            [1., 0.0, 0.0],
+        ]
+        .map(|v| Vec3::from(v).normalize_or_zero().to_array());
+
+        normals.extend(n);
     }
-    for x in 0..CHUNK_SIZE / s {
+    for x in 0..stride {
         let offset = x_off + x as u16 * 8;
         indices.extend([
             offset,
@@ -326,27 +319,26 @@ pub fn make_baked_mesh_lod(lod: LoD) -> Mesh {
         ]);
     }
     let y_off = vertices.len() as u16;
-    for y in 0..CHUNK_SIZE / s {
-        let y = (y * s) as f32;
-        vertices.extend([
-            [0., y, 0.],
-            [CHUNK_SIZE as f32, y, 0.],
-            [CHUNK_SIZE as f32, y, CHUNK_SIZE as f32],
-            [0., y, CHUNK_SIZE as f32],
-        ]);
-        let y = y + lod.step();
-        vertices.extend([
-            [0., y, 0.],
-            [CHUNK_SIZE as f32, y, 0.],
-            [CHUNK_SIZE as f32, y, CHUNK_SIZE as f32],
-            [0., y, CHUNK_SIZE as f32],
-        ]);
-        normals.extend([[0., 1., 0.]; 4]);
-        normals.extend([[0., -1., 0.]; 4]);
-        color.extend([[0., 1., 0., 1.]; 8]);
-        uv.extend([[1., 0.]; 4]);
+    for y in 0..stride {
+        let o = (-1f64 + (STEP * y as f64 * lod.step() as f64)) as f32;
+        let b = (-1f64 + (STEP * (y + 1) as f64 * lod.step() as f64)) as f32;
+        vertices.extend([[BLC, o, BLC], [TRC, o, BLC], [TRC, o, TRC], [BLC, o, TRC]]);
+        vertices.extend([[BLC, b, BLC], [TRC, b, BLC], [TRC, b, TRC], [BLC, b, TRC]]);
+        normals.extend(
+            [
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ]
+            .map(|v| Vec3::from(v).normalize_or_zero().to_array()),
+        );
     }
-    for y in 0..CHUNK_SIZE / s {
+    for y in 0..stride {
         let offset = y_off + y as u16 * 8;
         indices.extend([
             offset,

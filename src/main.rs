@@ -9,6 +9,10 @@ use ui::UiPlugin;
 
 fn main() {
     let mut app = App::new();
+    let mut tpo = TaskPoolOptions::default();
+    tpo.async_compute.max_threads = usize::MAX;
+    tpo.async_compute.percent = 0.75;
+
     app.add_plugins(
         DefaultPlugins
             .set(ImagePlugin {
@@ -16,15 +20,14 @@ fn main() {
                     address_mode_u: bevy::image::ImageAddressMode::Repeat,
                     address_mode_v: bevy::image::ImageAddressMode::Repeat,
                     address_mode_w: bevy::image::ImageAddressMode::Repeat,
-                    // mag_filter: bevy::image::ImageFilterMode::Linear,
-                    // min_filter: bevy::image::ImageFilterMode::Linear,
-                    // mipmap_filter: bevy::image::ImageFilterMode::Linear,
+                    mag_filter: bevy::image::ImageFilterMode::Linear,
+                    min_filter: bevy::image::ImageFilterMode::Nearest,
+                    mipmap_filter: bevy::image::ImageFilterMode::Linear,
                     ..default()
                 },
             })
-            .set(AssetPlugin {
-                // file_path: "../../assets".to_string(),
-                ..default()
+            .set(TaskPoolPlugin {
+                task_pool_options: tpo,
             }),
     );
     app.add_systems(

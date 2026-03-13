@@ -1,8 +1,3 @@
-use bevy::{
-    ui::Checked,
-    ui_widgets::{SliderPrecision, SliderStep, SliderValue, ValueChange, observe},
-};
-
 use crate::player::FlyCameraSettings;
 
 use super::*;

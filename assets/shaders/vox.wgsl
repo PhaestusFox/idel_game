@@ -69,7 +69,7 @@ fn fragment(
     };
     sample_pos /= chunk_size;
     // sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
-    let c = textureSample(material_color_texture, material_color_sampler, sample_pos);
+    var c = textureSample(material_color_texture, material_color_sampler, sample_pos);
     var l: f32 = 0.;
     
 
