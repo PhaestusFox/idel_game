@@ -3,6 +3,7 @@ const ERROR_COLOR: vec4<f32> = vec4<f32>(1.0, 0.0, 1.0,1.);
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_3d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: f32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(4) var<uniform> chunk_offset: vec3<f32>;
 
 struct VertexOutput {
     // This is `clip position` when the struct is used as a vertex stage output
@@ -36,30 +37,34 @@ const chunk_size: f32 = 32.;
 fn fragment(
     mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {
-    // if true {
-    //     return vec4(abs(mesh.world_normal), 1);
-    // }
+    var pos = mesh.world_position.xyz - chunk_offset;
     var offset = sign(mesh.world_normal) * 0.5;
-    var pos = mesh.world_position.xyz;
-    if pos.y < -0 {
-        pos.y = ceil(pos.y + offset.y);
-    } else {
-        pos.y = floor(pos.y - offset.y);
-    }
-    if pos.x < -0. {
-        pos.x = ceil(pos.x + offset.x);
-    } else {
-        pos.x = floor(pos.x - offset.x);
-    }
-    if pos.z < -0. {
-        pos.z = ceil(pos.z - offset.z);
-    } else {
-        pos.z = floor(pos.z - offset.z);
-    }
-    var sample_pos = (((pos % chunk_size) + chunk_size) % chunk_size);
-    sample_pos = floor(sample_pos) * lod + lod * 0.5 - offset * 0.5;
-    sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
-    let c = textureSample(material_color_texture, material_color_sampler, sample_pos / chunk_size);
+    pos = floor(pos - offset);
+    // var sample_pos = (((pos % chunk_size) + chunk_size) % chunk_size);
+    var sample_pos = pos;
+    sample_pos /= lod;
+    sample_pos = floor(sample_pos) * lod + lod * 0.5;
+    if pos.y >= chunk_size {
+        discard;
+    };
+    if pos.x >= chunk_size {
+        discard;
+    };
+    if pos.z >= chunk_size{
+        discard;
+    };
+    if pos.x <= -1.0 {
+        discard;
+    };
+    if pos.y <= -1.0 {
+        discard;
+    };
+    if pos.z <= -1.0 {
+        discard;
+    };
+    sample_pos /= chunk_size;
+    // sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
+    let c = textureSample(material_color_texture, material_color_sampler, sample_pos);
     var l: f32 = 0.;
     
 

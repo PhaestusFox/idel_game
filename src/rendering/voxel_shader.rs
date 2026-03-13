@@ -16,6 +16,8 @@ pub struct CustomMaterial {
     pub alpha_mode: AlphaMode,
     #[uniform(3)]
     pub lod: f32,
+    #[uniform(4)]
+    pub chunk_offset: Vec3,
 }
 
 /// The Material trait is very configurable, but comes with sensible defaults for all methods.

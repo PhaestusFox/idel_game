@@ -7,10 +7,11 @@ use bevy::{
 use rand::{RngExt, SeedableRng};
 
 pub const CHUNK_SIZE: usize = 32;
+pub const CHUNK_OFFSET: Vec3 = Vec3::splat(CHUNK_SIZE as f32 * 0.5 - 1.0);
 const STEP: f64 = 2. / CHUNK_SIZE as f64;
 // pub const TLC: f32 = 31.9990024566650390625; // this is CHUNK_SIZE - 0.001 + 1 bit
-pub const TRC: f32 = 0.99999;
-pub const BLC: f32 = -0.9999;
+pub const TRC: f32 = 1.;
+pub const BLC: f32 = -1.;
 
 use crate::map::map_gen::MapDescriptor;
 
@@ -96,7 +97,19 @@ impl ChunkData {
 #[derive(Component)]
 pub struct Chunk {
     pub data: Handle<ChunkData>,
-    pub pos: IVec3,
+}
+
+#[derive(Component, Deref)]
+pub struct ChunkId(IVec3);
+
+impl ChunkId {
+    pub fn new(pos: IVec3) -> Self {
+        Self(pos)
+    }
+
+    pub fn offset(&self) -> Vec3 {
+        (self.0 * CHUNK_SIZE as i32).as_vec3()
+    }
 }
 
 pub fn make_baked_mesh() -> Mesh {

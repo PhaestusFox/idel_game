@@ -26,9 +26,9 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -16..=16 {
-        for y in -8..2 {
-            for z in -8..=8 {
+    for x in 0..=16 {
+        for y in 0..2 {
+            for z in 0..=8 {
                 if z == 1 && x == 1 {
                     continue;
                 }
@@ -146,6 +146,7 @@ impl MeshGenerator {
                         lod: lod.step(),
                         color_texture: None,
                         alpha_mode: AlphaMode::Opaque,
+                        chunk_offset: Vec3::ZERO,
                     })),
                     Transform::from_translation(
                         (chunk * CHUNK_SIZE as i32).as_vec3()
@@ -153,6 +154,7 @@ impl MeshGenerator {
                     )
                     .with_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
                     ChildOf(self.root),
+                    ChunkId::new(chunk),
                 ))
                 .id();
             self.tasks.insert(id, task);
@@ -189,27 +191,28 @@ fn update_mesh_generator(
     mut mesh_generator: ResMut<MeshGenerator>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    chunks: Query<(&MeshMaterial3d<CustomMaterial>)>,
+    chunks: Query<(&ChunkId, &MeshMaterial3d<CustomMaterial>)>,
     mut mashes: ResMut<Assets<CustomMaterial>>,
     player: Single<&Transform, With<crate::player::PlayerEntity>>,
 ) {
     let mut keep = HashMap::default();
     for (id, task) in mesh_generator.tasks.drain() {
         if task.is_finished() {
-            let Ok(material) = chunks.get(id) else {
+            let Ok((chunk_id, material)) = chunks.get(id) else {
                 error!("Chunk entity was despawned before mesh generation finished");
                 continue;
             };
             let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
-            commands.entity(id).insert(Chunk {
+            let chunk = Chunk {
                 data: asset_server.add(data),
-                pos: IVec3::ZERO,
-            });
-            let Some(mut material) = mashes.get_mut(material.id()) else {
+            };
+            let Some(material) = mashes.get_mut(material.id()) else {
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
             material.color_texture = Some(asset_server.add(image));
+            material.chunk_offset = chunk_id.offset();
+            commands.entity(id).insert(chunk);
         } else {
             keep.insert(id, task);
         }
