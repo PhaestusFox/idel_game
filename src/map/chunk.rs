@@ -18,6 +18,7 @@ use super::*;
 
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct ChunkData {
+    pub is_empty: bool,
     blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
 }
 
@@ -126,12 +127,17 @@ impl ChunkData {
 
     #[inline(always)]
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: Block) {
+        if block == Block::Void {
+            return;
+        }
         let i = Self::get_index(x, y, z);
+        self.is_empty = false;
         self.blocks[i] = block;
     }
 
     pub fn empty() -> Self {
         Self {
+            is_empty: true,
             blocks: [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
         }
     }
@@ -150,6 +156,7 @@ impl ChunkData {
 
 #[derive(Component)]
 pub struct Chunk {
+    pub is_empty: bool,
     pub data: Handle<ChunkData>,
 }
 

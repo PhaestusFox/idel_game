@@ -26,8 +26,8 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -16..=64 {
-        for y in -2..=4 {
+    for x in -32..=32 {
+        for y in -4..=4 {
             for z in -32..=32 {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
@@ -38,7 +38,7 @@ fn spawn_test_chunk(
 #[derive(Resource)]
 struct MeshGenerator {
     main_mesh: Handle<Mesh>,
-    meshs: Vec<Handle<Mesh>>,
+    meshs: HashMap<LoD, Handle<Mesh>>,
     dummy_image: Handle<Image>,
     tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
     new_tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
@@ -59,9 +59,9 @@ impl FromWorld for MeshGenerator {
             ))
             .id();
         let asset_server = world.resource::<AssetServer>();
-        let mut lods = Vec::new();
-        for lod in [LoD::LOD1, LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
-            lods.push(asset_server.add(make_baked_mesh_lod(lod)));
+        let mut lods = HashMap::new();
+        for lod in [LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
+            lods.insert(lod, asset_server.add(make_baked_mesh_lod(lod)));
         }
 
         Self {
@@ -183,10 +183,7 @@ impl MeshGenerator {
     }
 
     fn get_mesh(&self, lod: LoD) -> Handle<Mesh> {
-        self.meshs
-            .get(lod as usize)
-            .unwrap_or(&self.main_mesh)
-            .clone()
+        self.meshs.get(&lod).unwrap_or(&self.main_mesh).clone()
     }
 }
 
@@ -208,6 +205,7 @@ fn update_mesh_generator(
             };
             let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
             let chunk = Chunk {
+                is_empty: data.is_empty,
                 data: asset_server.add(data),
             };
             let Some(material) = mashes.get_mut(material.id()) else {
@@ -215,7 +213,11 @@ fn update_mesh_generator(
                 continue;
             };
             material.chunk_offset = chunk_id.offset();
-            material.data = asset_server.add(image);
+            if !chunk.is_empty {
+                material.data = asset_server.add(image);
+            } else {
+                commands.entity(id).insert(Visibility::Hidden);
+            }
             commands.entity(id).insert(chunk);
         } else {
             keep.insert(id, task);
