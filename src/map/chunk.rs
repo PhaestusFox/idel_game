@@ -4,6 +4,7 @@ use bevy::{
     mesh::PrimitiveTopology,
     render::render_resource::Extent3d,
 };
+use bevy_inspector_egui::egui::emath;
 
 pub const CHUNK_SIZE: usize = 32;
 pub const CHUNK_OFFSET: Vec3 = Vec3::splat(CHUNK_SIZE as f32 * 0.5 - 1.0);
@@ -18,7 +19,6 @@ use super::*;
 
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct ChunkData {
-    pub is_empty: bool,
     blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
 }
 
@@ -127,17 +127,12 @@ impl ChunkData {
 
     #[inline(always)]
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: Block) {
-        if block == Block::Void {
-            return;
-        }
         let i = Self::get_index(x, y, z);
-        self.is_empty = false;
         self.blocks[i] = block;
     }
 
     pub fn empty() -> Self {
         Self {
-            is_empty: true,
             blocks: [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
         }
     }
@@ -152,11 +147,23 @@ impl ChunkData {
     pub fn get_index(x: u8, y: u8, z: u8) -> usize {
         z as usize * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + x as usize
     }
+
+    pub fn lod_hint(&self) -> LoD {
+        let solid = !self.blocks.iter().any(|b| *b == Block::Void);
+        let empty = !self.blocks.iter().any(|b| *b != Block::Void);
+        if solid {
+            LoD::Solid
+        } else if empty {
+            LoD::Empty
+        } else {
+            LoD::LOD1
+        }
+    }
 }
 
 #[derive(Component)]
 pub struct Chunk {
-    pub is_empty: bool,
+    pub lod_hint: LoD,
     pub data: Handle<ChunkData>,
 }
 
@@ -425,4 +432,8 @@ pub fn make_baked_mesh_lod(lod: LoD) -> Mesh {
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
 
     mesh
+}
+
+pub fn make_solid_mesh() -> Mesh {
+    Cuboid::from_length(2.).into()
 }

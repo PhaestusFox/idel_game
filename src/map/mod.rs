@@ -63,6 +63,7 @@ impl FromWorld for MeshGenerator {
         for lod in [LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
             lods.insert(lod, asset_server.add(make_baked_mesh_lod(lod)));
         }
+        lods.insert(LoD::Solid, asset_server.add(make_solid_mesh()));
 
         Self {
             root,
@@ -73,19 +74,21 @@ impl FromWorld for MeshGenerator {
             que: IndexSet::default(),
             dirty: false,
             dummy_image: asset_server.add(ChunkData::dummy_image()),
-            max_chunk_tasks: 100,
+            max_chunk_tasks: 250,
             world: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
         }
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-enum LoD {
+pub enum LoD {
     LOD1,
     LOD2,
     LOD4,
     LOD8,
     LOD16,
+    Solid,
+    Empty,
 }
 impl LoD {
     fn step(&self) -> f32 {
@@ -95,6 +98,7 @@ impl LoD {
             LoD::LOD4 => 4.,
             LoD::LOD8 => 8.,
             LoD::LOD16 => 16.,
+            _ => 1.,
         }
     }
 }
@@ -139,7 +143,7 @@ impl MeshGenerator {
             } else {
                 LoD::LOD16
             };
-            let mesh = self.get_mesh(lod);
+            let mesh = self.get_mesh(LoD::LOD1);
             let id = commands
                 .spawn((
                     Name::new(format!("Chunk ({})", chunk)),
@@ -196,8 +200,8 @@ fn update_mesh_generator(
     player: Single<&Transform, With<crate::player::PlayerEntity>>,
     mut done: Local<bool>,
 ) {
-    let mut keep = HashMap::default();
-    for (id, task) in mesh_generator.tasks.drain() {
+    let mut tasks = std::mem::take(&mut mesh_generator.tasks);
+    for (id, task) in tasks.drain() {
         if task.is_finished() {
             let Ok((chunk_id, material)) = chunks.get(id) else {
                 error!("Chunk entity was despawned before mesh generation finished");
@@ -205,7 +209,7 @@ fn update_mesh_generator(
             };
             let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
             let chunk = Chunk {
-                is_empty: data.is_empty,
+                lod_hint: data.lod_hint(),
                 data: asset_server.add(data),
             };
             let Some(material) = mashes.get_mut(material.id()) else {
@@ -213,17 +217,20 @@ fn update_mesh_generator(
                 continue;
             };
             material.chunk_offset = chunk_id.offset();
-            if !chunk.is_empty {
-                material.data = asset_server.add(image);
-            } else {
-                commands.entity(id).insert(Visibility::Hidden);
+            material.data = asset_server.add(image);
+            let mut chunk_entity = commands.entity(id);
+            match chunk.lod_hint {
+                LoD::Solid => chunk_entity.insert(Mesh3d(mesh_generator.get_mesh(LoD::Solid))),
+                LoD::Empty => chunk_entity.insert(Visibility::Hidden),
+                _ => &mut chunk_entity,
             }
-            commands.entity(id).insert(chunk);
+            .insert(chunk);
         } else {
-            keep.insert(id, task);
+            mesh_generator.new_tasks.insert(id, task);
         }
     }
-    mesh_generator.tasks = keep;
+    std::mem::swap(&mut tasks, &mut mesh_generator.new_tasks);
+    mesh_generator.tasks = tasks;
     if mesh_generator.tasks.is_empty() && !*done && mesh_generator.que.is_empty() {
         println!("All chunks generated");
         *done = true;

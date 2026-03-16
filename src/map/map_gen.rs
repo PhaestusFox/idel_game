@@ -2,7 +2,6 @@ use core::f32;
 
 use super::*;
 use noise::NoiseFn;
-use rand::{RngExt, SeedableRng};
 pub struct MapDescriptor {
     noise: noise::Fbm<noise::OpenSimplex>,
     ground_curve: bevy::math::curve::EasingCurve<f32>,

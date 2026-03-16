@@ -47,7 +47,7 @@ fn fragment(
     }
 
     let c = textureSample(material_color_texture, material_color_sampler, vec2(f32(block_id) / 255. + (1 / 512.), 0.5));
-		// if c.a < 0.2 { discard; }
+	if c.a < 0.2 { discard; }
 
     let l: f32 = shading_of_normal(mesh.world_normal);
     return c * vec4(vec3(l), 1.);
