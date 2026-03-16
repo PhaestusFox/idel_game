@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, AddAssign, Div, Sub};
 
 use bevy::{
     asset::RenderAssetUsages,
@@ -173,7 +173,7 @@ pub struct Chunk {
     pub data: Handle<ChunkData>,
 }
 
-#[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash, Resource)]
 #[component(on_insert = Self::on_insert, on_remove = Self::on_remove)]
 pub struct ChunkId(IVec3);
 
@@ -184,11 +184,27 @@ impl ChunkId {
             return;
         }
         let id = *world.get::<ChunkId>(ctx.entity).unwrap();
-        world.resource_mut::<ChunkLookup>().insert(id, ctx.entity);
+        let lookup = world.resource::<ChunkLookup>();
+        let block = if let Some(block_entity) = lookup.get_block(&id) {
+            block_entity
+        } else {
+            world.commands().spawn((ChunkBlock::from(id))).id()
+        };
+        world.commands().entity(ctx.entity).insert(ChildOf(block));
+        let mut lookup = world.resource_mut::<ChunkLookup>();
+        lookup.insert(id, ctx.entity);
     }
     pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
         let id = *world.get::<ChunkId>(ctx.entity).unwrap();
         world.resource_mut::<ChunkLookup>().remove(&id);
+    }
+}
+
+impl Div<i32> for ChunkId {
+    type Output = Self;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }
 
@@ -223,6 +239,12 @@ impl Add for ChunkId {
     }
 }
 
+impl AddAssign for ChunkId {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
 impl Sub for ChunkId {
     type Output = Self;
 
@@ -236,6 +258,12 @@ impl Add<IVec3> for ChunkId {
 
     fn add(self, rhs: IVec3) -> Self::Output {
         Self(self.0 + rhs)
+    }
+}
+
+impl AddAssign<IVec3> for ChunkId {
+    fn add_assign(&mut self, rhs: IVec3) {
+        self.0 += rhs;
     }
 }
 

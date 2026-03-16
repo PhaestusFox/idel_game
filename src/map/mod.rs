@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use bevy::ecs::lifecycle::HookContext;
+use bevy::ecs::world::DeferredWorld;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::Task};
 
 pub struct MapPlugin;
@@ -346,11 +348,28 @@ impl Block {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ChunkLookup {
+    map_root: Entity,
     chunks: HashMap<ChunkId, Entity>,
+    blocks: HashMap<ChunkBlock, Entity>,
 }
 
+impl FromWorld for ChunkLookup {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            map_root: world
+                .spawn((
+                    Name::new("MapRoot"),
+                    Transform::default(),
+                    Visibility::Visible,
+                ))
+                .id(),
+            chunks: HashMap::default(),
+            blocks: HashMap::default(),
+        }
+    }
+}
 impl ChunkLookup {
     pub fn insert(&mut self, pos: ChunkId, entity: Entity) {
         self.chunks.insert(pos, entity);
@@ -362,5 +381,59 @@ impl ChunkLookup {
 
     pub fn get(&self, pos: &ChunkId) -> Option<Entity> {
         self.chunks.get(pos).cloned()
+    }
+
+    pub fn add_block(&mut self, pos: ChunkBlock, entity: Entity) {
+        self.blocks.insert(pos, entity);
+    }
+
+    #[inline]
+    pub fn get_block(&self, chunk: &ChunkId) -> Option<Entity> {
+        let block = *chunk / CHUNK_BLOCK_SIZE;
+        self.blocks.get(&ChunkBlock(*block)).cloned()
+    }
+
+    pub fn root(&self) -> Entity {
+        self.map_root
+    }
+}
+
+#[derive(Component, PartialEq, Eq, Clone, Copy, Debug, Hash, Deref)]
+#[component(immutable, on_insert = ChunkBlock::on_insert, on_remove = ChunkBlock::on_remove)]
+#[require(Name = Name::new("ChunkBlock"), Transform, Visibility)]
+pub struct ChunkBlock(pub IVec3);
+
+const CHUNK_BLOCK_SIZE: i32 = 3;
+
+impl ChunkBlock {
+    pub fn world_pos(&self) -> Vec3 {
+        let offset = self.0 * CHUNK_BLOCK_SIZE * CHUNK_SIZE as i32;
+        (offset).as_vec3()
+    }
+
+    pub fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let id = *world
+            .get::<ChunkBlock>(ctx.entity)
+            .expect("ChunkBlock just Inserted");
+        let mut lookup = world.resource_mut::<ChunkLookup>();
+        lookup.add_block(id, ctx.entity);
+        let root = lookup.root();
+        world.commands().entity(ctx.entity).insert(ChildOf(root));
+        world
+            .get_mut::<Name>(ctx.entity)
+            .expect("Name is required")
+            .set(format!("ChunkBlock: ({},{},{})", id.x, id.y, id.z));
+    }
+    pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let id = *world
+            .get::<ChunkBlock>(ctx.entity)
+            .expect("ChunkBlock about to be Removed");
+        world.resource_mut::<ChunkLookup>().blocks.remove(&id);
+    }
+}
+
+impl From<ChunkId> for ChunkBlock {
+    fn from(value: ChunkId) -> Self {
+        Self(*value / CHUNK_BLOCK_SIZE)
     }
 }

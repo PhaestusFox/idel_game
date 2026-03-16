@@ -1,5 +1,6 @@
 //! A shader and a material that uses it.
 
+use bevy::render::render_resource::{PushConstantRange, ShaderStages};
 use bevy::{
     prelude::*, reflect::TypePath, render::render_resource::AsBindGroup, shader::ShaderRef,
 };
@@ -35,5 +36,46 @@ impl Material for CustomMaterial {
 
     fn alpha_mode(&self) -> AlphaMode {
         self.alpha_mode
+    }
+
+    fn vertex_shader() -> ShaderRef {
+        ShaderRef::Default
+    }
+
+    fn enable_prepass() -> bool {
+        true
+    }
+
+    fn enable_shadows() -> bool {
+        false
+    }
+
+    fn prepass_vertex_shader() -> ShaderRef {
+        ShaderRef::Default
+    }
+
+    fn prepass_fragment_shader() -> ShaderRef {
+        ShaderRef::Default
+    }
+
+    fn deferred_vertex_shader() -> ShaderRef {
+        ShaderRef::Default
+    }
+
+    fn deferred_fragment_shader() -> ShaderRef {
+        ShaderRef::Default
+    }
+
+    fn specialize(
+        pipeline: &bevy::pbr::MaterialPipeline,
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
+        key: bevy::pbr::MaterialPipelineKey<Self>,
+    ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.push_constant_ranges.push(PushConstantRange {
+            stages: ShaderStages::FRAGMENT,
+            range: 0..16,
+        });
+        Ok(())
     }
 }

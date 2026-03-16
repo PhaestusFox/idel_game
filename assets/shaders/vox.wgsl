@@ -1,5 +1,7 @@
 const ERROR_COLOR: vec4<f32> = vec4<f32>(1.0, 0.0, 1.0,1.);
-
+#import bevy_pbr::{
+    mesh_bindings::mesh,
+    mesh_functions};
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: f32;
@@ -39,9 +41,9 @@ const chunk_size: f32 = 32.;
 fn fragment(
     mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {
-		let pos = resolve_pos(mesh);
-		let block = get_block(pos);
-		let block_id = block & 0x000000FFu;
+    let pos = resolve_pos(mesh);
+    let block = get_block(pos);
+    let block_id = block & 0x000000FFu;
     if block_id == 0u {
         discard;
     }
@@ -54,7 +56,9 @@ fn fragment(
 }
 
 fn resolve_pos(mesh: VertexOutput) -> vec3u {
-    var pos = floor(mesh.world_position.xyz - chunk_offset - mesh.world_normal.xyz*0.5);
+    let world_from_local: mat4x4<f32> = mesh_functions::get_world_from_local(mesh.instance_index);
+    let offset = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(0., 0., 0., 1.0));
+    var pos = floor(mesh.world_position.xyz - (offset.xyz + vec3(-16.)) - mesh.world_normal.xyz*0.5);
 		pos = clamp(pos, vec3(0), vec3(chunk_size-1));
 		pos = (pos % chunk_size + chunk_size) % chunk_size;
 		return vec3u(pos);
