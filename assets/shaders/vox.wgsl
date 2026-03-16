@@ -34,91 +34,66 @@ struct VertexOutput {
 
 const chunk_size: f32 = 16.;
 
-
 @fragment
 fn fragment(
     mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {
-    /// calc chunk id for world position
-    /// calc chunk offset
-    /// sub offset from world position to get local position
-    /// workout what voxel you are
-    /// shift by 0.5 away from edge so the sampler takes from middle of the voxel not the edge and wraps
-    var pos = mesh.world_position.xyz - chunk_offset;
-    var offset = sign(mesh.world_normal) * 0.5;
-    pos = floor(pos - offset);
-    // var sample_pos = (((pos % chunk_size) + chunk_size) % chunk_size);
-    var sample_pos = pos;
-    sample_pos /= lod;
-    sample_pos = floor(sample_pos) * lod + lod * 0.5;
-    if pos.y >= chunk_size {
-        discard;
-    };
-    if pos.x >= chunk_size {
-        discard;
-    };
-    if pos.z >= chunk_size{
-        discard;
-    };
-    if pos.x <= -1.0 {
-        discard;
-    };
-    if pos.y <= -1.0 {
-        discard;
-    };
-    if pos.z <= -1.0 {
-        discard;
-    };
-    sample_pos /= chunk_size;
-    // sample_pos = clamp(sample_pos, vec3(0.), vec3(chunk_size));
-    // var c = textureSample(material_color_texture, material_color_sampler, sample_pos);
-    let x = u32(pos.x);
-    let index = (u32(pos.z) * u32(chunk_size) * u32(chunk_size) + u32(pos.y) * u32(chunk_size) + x) / 4u;
-    let block_data = data[index];
-    var block_id: u32 = 0;
-    switch (x % 4u) {
-        case 0u: {
-            block_id = block_data.x;
-        }
-        case 1: {
-            block_id = block_data.y;
-        }
-        case 2: {
-            block_id = block_data.z;
-        }
-        case 3: {
-            block_id = block_data.w;
-        }
-        default: {
-            block_id = block_data.x;
-        }
-    };
+		let pos = resolve_pos(mesh);
+		
+		let block = get_block(pos);
+		let block_id = block & 0x000000FFu;
     if block_id == 0u {
         discard;
     }
+
     let c = textureSample(material_color_texture, material_color_sampler, vec2(f32(block_id) / 255., 0.5));
+		if c.a < 0.2 { discard; }
 
+    let l: f32 = shading_of_normal(mesh.world_normal);
+    return c * vec4(vec3(l), 1.);
+}
 
-    var l: f32 = 0.;
-    
+fn resolve_pos(mesh: VertexOutput) -> vec3u {
+    var pos = floor(mesh.world_position.xyz - chunk_offset - mesh.world_normal.xyz*0.5);
+		pos = clamp(pos, vec3(0), vec3(chunk_size-1));
+		pos = (pos % chunk_size + chunk_size) % chunk_size;
+		return vec3u(pos);
+}
 
-    if mesh.world_normal.y > 0.5 {
-        l = 0.75; // bottom
-    } else if mesh.world_normal.y < -0.5 {
-        l = 1; // top
-    } else if mesh.world_normal.x > 0.5 {
-        l = 0.85; // right
-    } else if mesh.world_normal.x < -0.5 {
-        l = 0.95; // left
-    } else if mesh.world_normal.z > 0.5 {
-        l = 0.90; // front
+fn get_block(pos: vec3u) -> u32 {
+    let index = (pos.z * u32(chunk_size) * u32(chunk_size) + pos.y * u32(chunk_size) + pos.x) / 4u;
+    let block_data = data[index];
+    switch (pos.x % 4u) {
+        case 0u: {
+            return block_data.x;
+        }
+        case 1u: {
+            return block_data.y;
+        }
+        case 2u: {
+            return block_data.z;
+        }
+        case 3u: {
+            return block_data.w;
+        }
+        default: {
+            return block_data.x;
+        }
+    };
+}
+
+fn shading_of_normal(normal: vec3f) -> f32 {
+    if normal.y > 0.5 {
+        return 0.75; // bottom
+    } else if normal.y < -0.5 {
+        return 1; // top
+    } else if normal.x > 0.5 {
+        return 0.85; // right
+    } else if normal.x < -0.5 {
+        return 0.95; // left
+    } else if normal.z > 0.5 {
+        return 0.90; // front
     } else {
-        l = 0.80; // back
-    }
-
-    if c.a < 0.2 {
-        discard;
-    } else {
-        return c * vec4(vec3(l), 1.);
+        return 0.80; // back
     }
 }
