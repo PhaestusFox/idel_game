@@ -1,5 +1,9 @@
 use bevy::{
+    anti_alias::fxaa::Fxaa,
     input::{common_conditions::input_just_pressed, mouse::AccumulatedMouseMotion},
+    light::{FogVolume, VolumetricFog, VolumetricLight},
+    pbr::{Atmosphere, AtmosphereSettings, DefaultOpaqueRendererMethod, ScatteringMedium},
+    post_process::bloom::Bloom,
     prelude::*,
     window::{CursorOptions, PrimaryWindow},
 };
@@ -36,17 +40,23 @@ impl Plugin for PlayerPlugin {
 #[require(ChunkId)]
 pub struct PlayerEntity;
 
-fn spawn_player(mut commands: Commands) {
+fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         Name::new("PlayerCamera"),
         Camera3d::default(),
         Transform::from_xyz(0.0, 3.0, 6.0).looking_at(Vec3::ZERO, Vec3::Y),
         PlayerEntity,
-        DistanceFog {
-            color: Color::srgb(0.25, 0.25, 0.25),
-            falloff: FogFalloff::Exponential { density: 0.5 },
+        Atmosphere::earthlike(asset_server.add(ScatteringMedium::default())),
+        AtmosphereSettings::default(),
+        Bloom::NATURAL,
+        VolumetricFog {
+            ambient_intensity: 0.1,
             ..default()
         },
+        Msaa::Off,
+        bevy::camera::Exposure { ev100: 13.0 },
+        Fxaa::default(),
+        DistanceFog::default(),
     ));
 }
 
@@ -197,15 +207,13 @@ fn move_the_universe_not_the_ship(
     trigger: On<MoveWorld>,
     mut world_offset: ResMut<ChunkId>,
     mut player: Single<&mut Transform, With<PlayerEntity>>,
-    mut transforms: Query<&mut Transform, Without<PlayerEntity>>,
-    lookup: Res<ChunkLookup>,
+    mut transforms: Query<&mut Transform, (With<ChunkBlock>, Without<PlayerEntity>)>,
 ) {
-    let root = lookup.root();
-    let Ok(mut map) = transforms.get_mut(root) else {
-        return;
-    };
     player.translation -= trigger.offset();
-    map.translation -= trigger.offset();
+    for mut block in &mut transforms {
+        block.translation -= trigger.offset();
+    }
+    println!("Moving world by {:?}", world_offset);
     *world_offset += trigger.0;
 }
 

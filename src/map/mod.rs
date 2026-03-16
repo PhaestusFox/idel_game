@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use bevy::ecs::entity;
 use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::Task};
@@ -15,6 +16,8 @@ impl Plugin for MapPlugin {
         app.add_systems(Startup, spawn_test_chunk);
         app.add_systems(PreUpdate, hide_empty_chunks);
         app.add_systems(Update, update_mesh_generator);
+
+        app.add_plugins(ambiance::plugin);
     }
 }
 
@@ -22,6 +25,7 @@ mod chunk;
 mod map_gen;
 pub use chunk::*;
 use indexmap::IndexSet;
+mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
@@ -30,9 +34,9 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -16..=16 {
-        for y in -10..=4 {
-            for z in -16..=16 {
+    for x in -20..=20 {
+        for y in -4..=2 {
+            for z in -20..=20 {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
         }
@@ -44,8 +48,8 @@ pub struct MeshGenerator {
     main_mesh: Handle<Mesh>,
     meshs: HashMap<LoD, Handle<Mesh>>,
     dummy_image: Handle<Image>,
-    tasks: HashMap<Entity, Task<ChunkData>>,
-    new_tasks: HashMap<Entity, Task<ChunkData>>,
+    tasks: HashMap<ChunkId, Task<ChunkData>>,
+    new_tasks: HashMap<ChunkId, Task<ChunkData>>,
     root: Entity,
     dirty: bool,
     max_chunk_tasks: usize,
@@ -149,26 +153,20 @@ impl MeshGenerator {
                 LoD::LOD16
             };
             let mesh = self.get_mesh(LoD::LOD1);
-            let id = commands
-                .spawn((
-                    Name::new(format!("Chunk ({})", chunk)),
-                    Mesh3d(mesh),
-                    MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
-                        lod: lod.step(),
-                        color_texture: Some(colors.clone()),
-                        alpha_mode: AlphaMode::Opaque,
-                        chunk_offset: Vec3::ZERO,
-                        data: self.dummy_image.clone(),
-                    })),
-                    Transform::from_translation(
-                        (chunk * CHUNK_SIZE as i32).as_vec3()
-                            + Vec3::splat(CHUNK_SIZE as f32 * 0.5),
-                    )
-                    .with_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
-                    ChildOf(self.root),
-                    ChunkId::new(chunk),
-                ))
-                .id();
+            let id = ChunkId::new(chunk);
+            commands.spawn((
+                Name::new(format!("Chunk ({})", chunk)),
+                Mesh3d(mesh),
+                MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
+                    lod: lod.step(),
+                    color_texture: Some(colors.clone()),
+                    alpha_mode: AlphaMode::Opaque,
+                    data: self.dummy_image.clone(),
+                })),
+                Transform::from_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
+                ChildOf(self.root),
+                id,
+            ));
             self.tasks.insert(id, task);
         }
     }
@@ -204,15 +202,20 @@ fn update_mesh_generator(
     mut mesh_generator: ResMut<MeshGenerator>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    chunks: Query<(&ChunkId, &MeshMaterial3d<CustomMaterial>)>,
+    chunks: Query<&MeshMaterial3d<CustomMaterial>>,
     mut mashes: ResMut<Assets<CustomMaterial>>,
     player: Single<&Transform, With<crate::player::PlayerEntity>>,
     mut done: Local<bool>,
+    lookup: Res<ChunkLookup>,
 ) {
     let mut tasks = std::mem::take(&mut mesh_generator.tasks);
     for (id, task) in tasks.drain() {
         if task.is_finished() {
-            let Ok((chunk_id, material)) = chunks.get(id) else {
+            let Some(entity) = lookup.get(&id) else {
+                error!("Chunk entity was despawned before mesh generation finished");
+                continue;
+            };
+            let Ok(material) = chunks.get(entity) else {
                 error!("Chunk entity was despawned before mesh generation finished");
                 continue;
             };
@@ -221,7 +224,6 @@ fn update_mesh_generator(
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
-            material.chunk_offset = chunk_id.offset();
             if data.images.is_none() {
                 error!("ChunkData did not have an image after generation");
                 continue;
@@ -235,7 +237,7 @@ fn update_mesh_generator(
                 lod_hint: data.lod_hint(),
                 data: asset_server.add(data),
             };
-            let mut chunk_entity = commands.entity(id);
+            let mut chunk_entity = commands.entity(entity);
             match chunk.lod_hint {
                 // LoD::Solid => chunk_entity.insert(Mesh3d(mesh_generator.get_mesh(LoD::Solid))),
                 LoD::Empty => chunk_entity.insert(Visibility::Hidden),
@@ -412,6 +414,7 @@ impl ChunkBlock {
     }
 
     pub fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let offset = *world.resource::<ChunkId>();
         let id = *world
             .get::<ChunkBlock>(ctx.entity)
             .expect("ChunkBlock just Inserted");
@@ -423,6 +426,11 @@ impl ChunkBlock {
             .get_mut::<Name>(ctx.entity)
             .expect("Name is required")
             .set(format!("ChunkBlock: ({},{},{})", id.x, id.y, id.z));
+
+        world
+            .get_mut::<Transform>(ctx.entity)
+            .expect("Transform is required")
+            .translation = id.world_pos() - offset.offset();
     }
     pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
         let id = *world
@@ -435,5 +443,14 @@ impl ChunkBlock {
 impl From<ChunkId> for ChunkBlock {
     fn from(value: ChunkId) -> Self {
         Self(*value / CHUNK_BLOCK_SIZE)
+    }
+}
+
+impl std::ops::Sub<ChunkBlock> for ChunkId {
+    type Output = ChunkId;
+
+    fn sub(self, rhs: ChunkBlock) -> Self::Output {
+        let s = *rhs * CHUNK_BLOCK_SIZE;
+        ChunkId::new(*self - s)
     }
 }

@@ -9,7 +9,7 @@ use bevy::{
 };
 use bevy_inspector_egui::egui::emath;
 
-pub const CHUNK_SIZE: usize = 32;
+pub const CHUNK_SIZE: usize = 64;
 pub const CHUNK_OFFSET: Vec3 = Vec3::splat(CHUNK_SIZE as f32 * 0.5 - 1.0);
 const STEP: f64 = 2. / CHUNK_SIZE as f64;
 // pub const TLC: f32 = 31.9990024566650390625; // this is CHUNK_SIZE - 0.001 + 1 bit
@@ -22,7 +22,7 @@ use super::*;
 
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct ChunkData {
-    blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
+    blocks: Vec<Block>,
     pub images: Option<Handle<Image>>,
 }
 
@@ -133,12 +133,16 @@ impl ChunkData {
     #[inline(always)]
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: Block) {
         let i = Self::get_index(x, y, z);
+        if self.blocks.len() <= i {
+            self.blocks
+                .extend(core::iter::repeat_n(Block::Void, i + 1 - self.blocks.len()));
+        }
         self.blocks[i] = block;
     }
 
     pub fn empty() -> Self {
         Self {
-            blocks: [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
+            blocks: Vec::new(),
             images: None,
         }
     }
@@ -175,6 +179,7 @@ pub struct Chunk {
 
 #[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash, Resource)]
 #[component(on_insert = Self::on_insert, on_remove = Self::on_remove)]
+#[require(Transform)]
 pub struct ChunkId(IVec3);
 
 impl ChunkId {
@@ -184,11 +189,18 @@ impl ChunkId {
             return;
         }
         let id = *world.get::<ChunkId>(ctx.entity).unwrap();
+        let block = ChunkBlock::from(id);
+        let index = id - block;
+        world
+            .get_mut::<Transform>(ctx.entity)
+            .expect("Transform is required")
+            .translation = index.offset();
+
         let lookup = world.resource::<ChunkLookup>();
         let block = if let Some(block_entity) = lookup.get_block(&id) {
             block_entity
         } else {
-            world.commands().spawn((ChunkBlock::from(id))).id()
+            world.commands().spawn(block).id()
         };
         world.commands().entity(ctx.entity).insert(ChildOf(block));
         let mut lookup = world.resource_mut::<ChunkLookup>();

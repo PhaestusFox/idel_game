@@ -21,9 +21,7 @@ pub struct CustomMaterial {
     pub alpha_mode: AlphaMode,
     #[uniform(3)]
     pub lod: f32,
-    #[uniform(4)]
-    pub chunk_offset: Vec3,
-    #[storage_texture(5, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment))]
+    #[storage_texture(4, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment))]
     pub data: Handle<Image>,
 }
 
@@ -64,18 +62,5 @@ impl Material for CustomMaterial {
 
     fn deferred_fragment_shader() -> ShaderRef {
         ShaderRef::Default
-    }
-
-    fn specialize(
-        pipeline: &bevy::pbr::MaterialPipeline,
-        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
-        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
-        key: bevy::pbr::MaterialPipelineKey<Self>,
-    ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
-        descriptor.push_constant_ranges.push(PushConstantRange {
-            stages: ShaderStages::FRAGMENT,
-            range: 0..16,
-        });
-        Ok(())
     }
 }

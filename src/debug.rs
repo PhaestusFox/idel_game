@@ -13,7 +13,6 @@ pub fn spawn_test_cube(mut commands: Commands, asset_server: Res<AssetServer>) {
             lod: 1.,
             color_texture: Some(asset_server.load("colors.png")),
             alpha_mode: AlphaMode::Opaque,
-            chunk_offset: Vec3::ZERO,
             data: asset_server.add(image),
         })),
         Transform::from_xyz(0., 0., 0.),
