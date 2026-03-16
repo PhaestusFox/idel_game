@@ -1,4 +1,6 @@
-use bevy::{diagnostic::DiagnosticsStore, window::PrimaryWindow};
+use bevy::{
+    diagnostic::DiagnosticsStore, log::tracing_subscriber::fmt::format, window::PrimaryWindow,
+};
 
 use super::*;
 
@@ -59,21 +61,41 @@ fn spawn_fps(commands: &mut Commands) {
         Node {
             top: Val::Px(10.),
             left: Val::Px(10.),
+            flex_direction: FlexDirection::Column,
+            flex_wrap: FlexWrap::Wrap,
             ..Default::default()
         },
-        Text::new("FPS: N/A"),
-        ThemedText,
+        children![
+            (Text::new("FPS: N/A"), ThemedText,),
+            (Text::new("FPS_A: N/A"), ThemedText,),
+            (Text::new("FPS_S: N/A"), ThemedText,),
+        ],
     ));
 }
 
-fn update_fps(mut fps: Single<&mut Text, With<FPSText>>, diagnostics: Res<DiagnosticsStore>) {
-    fps.0 = format!(
-        "FPS: {:.1}",
-        diagnostics
-            .get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS)
-            .and_then(|fps| fps.value())
-            .unwrap_or(0.0)
-    );
+fn update_fps(
+    fps_root: Single<&Children, With<FPSText>>,
+    mut text: Query<&mut Text>,
+    diagnostics: Res<DiagnosticsStore>,
+) {
+    let diagnostic = diagnostics
+        .get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS)
+        .unwrap();
+    let Ok(mut fps) = text.get_mut(fps_root[0]) else {
+        error!("FPS text entity was despawned");
+        return;
+    };
+    fps.0 = format!("FPS: {:.2}", diagnostic.value().unwrap_or_default());
+    let Ok(mut fps_a) = text.get_mut(fps_root[1]) else {
+        error!("FPS_A text entity was despawned");
+        return;
+    };
+    fps_a.0 = format!("FPS_A: {:.2}", diagnostic.average().unwrap_or_default());
+    let Ok(mut fps_s) = text.get_mut(fps_root[2]) else {
+        error!("FPS_S text entity was despawned");
+        return;
+    };
+    fps_s.0 = format!("FPS_S: {:.2}", diagnostic.smoothed().unwrap_or_default());
 }
 
 fn toggle_cap(
