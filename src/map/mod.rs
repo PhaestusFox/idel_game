@@ -27,7 +27,7 @@ fn spawn_test_chunk(
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
     for x in -16..=64 {
-        for y in 0..=4 {
+        for y in -2..=4 {
             for z in -32..=32 {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
@@ -39,6 +39,7 @@ fn spawn_test_chunk(
 struct MeshGenerator {
     main_mesh: Handle<Mesh>,
     meshs: Vec<Handle<Mesh>>,
+    dummy_image: Handle<Image>,
     tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
     new_tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
     root: Entity,
@@ -71,6 +72,7 @@ impl FromWorld for MeshGenerator {
             new_tasks: HashMap::default(),
             que: IndexSet::default(),
             dirty: false,
+            dummy_image: asset_server.add(ChunkData::dummy_image()),
             max_chunk_tasks: 100,
             world: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
         }
@@ -147,7 +149,7 @@ impl MeshGenerator {
                         color_texture: Some(colors.clone()),
                         alpha_mode: AlphaMode::Opaque,
                         chunk_offset: Vec3::ZERO,
-                        data: ChunkData::empty(),
+                        data: self.dummy_image.clone(),
                     })),
                     Transform::from_translation(
                         (chunk * CHUNK_SIZE as i32).as_vec3()
@@ -205,16 +207,16 @@ fn update_mesh_generator(
                 continue;
             };
             let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
-            // let chunk = Chunk {
-            //     data: asset_server.add(data),
-            // };
+            let chunk = Chunk {
+                data: asset_server.add(data),
+            };
             let Some(material) = mashes.get_mut(material.id()) else {
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
             material.chunk_offset = chunk_id.offset();
-            material.data = data;
-            // commands.entity(id).insert(chunk);
+            material.data = asset_server.add(image);
+            commands.entity(id).insert(chunk);
         } else {
             keep.insert(id, task);
         }
@@ -294,6 +296,18 @@ impl Block {
                     Block::Void
                 }
             }
+        }
+    }
+    fn block_type(&self) -> u8 {
+        match self {
+            Block::Void => 0,
+            Block::Grass => 1,
+            Block::Dirt => 2,
+            Block::Stone => 3,
+            Block::BedRock => 4,
+            Block::Snow => 5,
+            Block::Sand => 6,
+            Block::Other(id) => 128 + (*id >> 1),
         }
     }
 }

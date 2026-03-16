@@ -15,4 +15,4 @@ noise = "*"
 bevy-inspector-egui = "*"
 
 [profile.dev.package."*"]
-optlev = 3
+opt-level = 3

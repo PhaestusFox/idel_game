@@ -12,7 +12,6 @@ fn main() {
     let mut tpo = TaskPoolOptions::default();
     tpo.async_compute.max_threads = usize::MAX;
     tpo.async_compute.percent = 0.75;
-
     app.add_plugins(
         DefaultPlugins
             .set(ImagePlugin {

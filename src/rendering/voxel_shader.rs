@@ -5,6 +5,8 @@ use bevy::{
 };
 
 use crate::map::ChunkData;
+use bevy::render::render_resource::StorageTextureAccess;
+use bevy::render::render_resource::TextureFormat;
 
 /// This example uses a shader source file from the assets subdirectory
 const SHADER_ASSET_PATH: &str = "shaders/vox.wgsl";
@@ -20,8 +22,8 @@ pub struct CustomMaterial {
     pub lod: f32,
     #[uniform(4)]
     pub chunk_offset: Vec3,
-    #[uniform(5)]
-    pub data: ChunkData,
+    #[storage_texture(5, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment))]
+    pub data: Handle<Image>,
 }
 
 /// The Material trait is very configurable, but comes with sensible defaults for all methods.

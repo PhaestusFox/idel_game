@@ -2,14 +2,10 @@ use bevy::{
     asset::RenderAssetUsages,
     image::{TextureFormatPixelInfo, Volume},
     mesh::PrimitiveTopology,
-    render::{
-        render_asset::RenderAsset,
-        render_resource::{Extent3d, ShaderType},
-    },
+    render::render_resource::Extent3d,
 };
-use rand::{RngExt, SeedableRng};
 
-pub const CHUNK_SIZE: usize = 16;
+pub const CHUNK_SIZE: usize = 32;
 pub const CHUNK_OFFSET: Vec3 = Vec3::splat(CHUNK_SIZE as f32 * 0.5 - 1.0);
 const STEP: f64 = 2. / CHUNK_SIZE as f64;
 // pub const TLC: f32 = 31.9990024566650390625; // this is CHUNK_SIZE - 0.001 + 1 bit
@@ -20,9 +16,9 @@ use crate::map::map_gen::MapDescriptor;
 
 use super::*;
 
-#[derive(Asset, TypePath, ShaderType, Debug, Clone)]
+#[derive(Asset, TypePath, Debug, Clone)]
 pub struct ChunkData {
-    blocks: [UVec4; (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE) / 4],
+    blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
 }
 
 impl ChunkData {
@@ -51,7 +47,7 @@ impl ChunkData {
                 depth_or_array_layers: CHUNK_SIZE as u32,
             },
             bevy::render::render_resource::TextureDimension::D3,
-            bevy::render::render_resource::TextureFormat::Rgba32Float,
+            bevy::render::render_resource::TextureFormat::Rgba8Uint,
             RenderAssetUsages::all(),
         );
         let data = vec![
@@ -61,18 +57,54 @@ impl ChunkData {
             ) * image.texture_descriptor.size.volume()
         ];
         image.data = Some(data);
+        image.texture_descriptor.usage |=
+            bevy::render::render_resource::TextureUsages::STORAGE_BINDING;
 
         for y in 0..CHUNK_SIZE {
             for x in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
-                    let color = self.get_block(x as u8, y as u8, z as u8).color();
-                    image
-                        .set_color_at_3d(x as u32, y as u32, z as u32, color)
-                        .unwrap();
+                    let block = self.get_block(x as u8, y as u8, z as u8);
+                    let Some(bytes) =
+                        image.pixel_bytes_mut(UVec3::new(x as u32, y as u32, z as u32))
+                    else {
+                        error!("Failed to get pixel bytes for chunk image");
+                        continue;
+                    };
+                    if bytes.len() == 4 {
+                        bytes[0] = block.block_type();
+                    } else {
+                        panic!(
+                            "Unexpected pixel byte length: expected 4, got {}",
+                            bytes.len()
+                        );
+                    }
                 }
             }
         }
 
+        image
+    }
+
+    pub fn dummy_image() -> Image {
+        let mut image = Image::new_uninit(
+            Extent3d {
+                width: CHUNK_SIZE as u32,
+                height: CHUNK_SIZE as u32,
+                depth_or_array_layers: CHUNK_SIZE as u32,
+            },
+            bevy::render::render_resource::TextureDimension::D3,
+            bevy::render::render_resource::TextureFormat::Rgba8Uint,
+            RenderAssetUsages::all(),
+        );
+        let data = vec![
+            0;
+            image.texture_descriptor.format.pixel_size().expect(
+                "Failed to create Image: can't get pixel size for this TextureFormat"
+            ) * image.texture_descriptor.size.volume()
+        ];
+        image.data = Some(data);
+        image.texture_descriptor.usage |=
+            bevy::render::render_resource::TextureUsages::STORAGE_BINDING;
         image
     }
 
@@ -92,30 +124,27 @@ impl ChunkData {
         (data, image)
     }
 
+    #[inline(always)]
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: Block) {
-        let x_i = x % 4;
-        let x_d = x / 4;
         let i = Self::get_index(x, y, z);
-        self.blocks[i][x_i as usize] = block.id();
+        self.blocks[i] = block;
     }
 
     pub fn empty() -> Self {
         Self {
-            blocks: [UVec4::ZERO; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE / 4],
+            blocks: [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
         }
     }
 
+    #[inline(always)]
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> Block {
-        let x_i = x % 4;
-        let x_d = x / 4;
         let i = Self::get_index(x, y, z);
-        Block::from_id(self.blocks[i][x_i as usize])
+        self.blocks[i]
     }
 
     #[inline(always)]
     pub fn get_index(x: u8, y: u8, z: u8) -> usize {
-        let i = z as usize * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + x as usize;
-        i / 4
+        z as usize * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + x as usize
     }
 }
 
