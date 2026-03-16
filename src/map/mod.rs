@@ -8,8 +8,10 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<chunk::ChunkData>();
+        app.init_resource::<ChunkLookup>();
         app.init_resource::<MeshGenerator>();
         app.add_systems(Startup, spawn_test_chunk);
+        app.add_systems(PreUpdate, hide_empty_chunks);
         app.add_systems(Update, update_mesh_generator);
     }
 }
@@ -26,9 +28,9 @@ fn spawn_test_chunk(
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -32..=32 {
-        for y in -4..=4 {
-            for z in -32..=32 {
+    for x in -16..=16 {
+        for y in -10..=4 {
+            for z in -16..=16 {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
         }
@@ -36,12 +38,12 @@ fn spawn_test_chunk(
 }
 
 #[derive(Resource)]
-struct MeshGenerator {
+pub struct MeshGenerator {
     main_mesh: Handle<Mesh>,
     meshs: HashMap<LoD, Handle<Mesh>>,
     dummy_image: Handle<Image>,
-    tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
-    new_tasks: HashMap<Entity, Task<(ChunkData, Image)>>,
+    tasks: HashMap<Entity, Task<ChunkData>>,
+    new_tasks: HashMap<Entity, Task<ChunkData>>,
     root: Entity,
     dirty: bool,
     max_chunk_tasks: usize,
@@ -127,9 +129,10 @@ impl MeshGenerator {
         for chunk in que {
             self.que.swap_remove(&chunk);
             let descriptor = self.world.clone();
+            let ass = asset_server.clone();
             let task = pool.spawn(async move {
                 let descriptor = descriptor.read().unwrap();
-                ChunkData::generate(chunk, &descriptor)
+                ChunkData::generate(chunk, &descriptor, ass)
             });
             let dis = chunk.as_vec3().distance(Vec3::ZERO);
             let lod = if dis < 16. {
@@ -189,6 +192,10 @@ impl MeshGenerator {
     fn get_mesh(&self, lod: LoD) -> Handle<Mesh> {
         self.meshs.get(&lod).unwrap_or(&self.main_mesh).clone()
     }
+
+    pub fn dummy_image(&self) -> Handle<Image> {
+        self.dummy_image.clone()
+    }
 }
 
 fn update_mesh_generator(
@@ -207,20 +214,28 @@ fn update_mesh_generator(
                 error!("Chunk entity was despawned before mesh generation finished");
                 continue;
             };
-            let (data, image) = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
-            let chunk = Chunk {
-                lod_hint: data.lod_hint(),
-                data: asset_server.add(data),
-            };
+            let data = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
             let Some(material) = mashes.get_mut(material.id()) else {
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
             material.chunk_offset = chunk_id.offset();
-            material.data = asset_server.add(image);
+            if data.images.is_none() {
+                error!("ChunkData did not have an image after generation");
+                continue;
+            }
+            let Some(image) = data.images.clone() else {
+                error!("ChunkData did not have an image after generation");
+                continue;
+            };
+            material.data = image;
+            let chunk = Chunk {
+                lod_hint: data.lod_hint(),
+                data: asset_server.add(data),
+            };
             let mut chunk_entity = commands.entity(id);
             match chunk.lod_hint {
-                LoD::Solid => chunk_entity.insert(Mesh3d(mesh_generator.get_mesh(LoD::Solid))),
+                // LoD::Solid => chunk_entity.insert(Mesh3d(mesh_generator.get_mesh(LoD::Solid))),
                 LoD::Empty => chunk_entity.insert(Visibility::Hidden),
                 _ => &mut chunk_entity,
             }
@@ -255,6 +270,16 @@ pub enum Block {
     Snow = 5,
     Sand = 6,
     Other(u8),
+}
+
+fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>>) {
+    for (chunk, mut visibility) in &mut chunks {
+        if chunk.lod_hint == LoD::Empty {
+            *visibility = Visibility::Hidden;
+        } else {
+            *visibility = Visibility::Visible;
+        }
+    }
 }
 
 impl Block {
@@ -318,5 +343,24 @@ impl Block {
             Block::Sand => 6,
             Block::Other(id) => 128 + (*id >> 1),
         }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct ChunkLookup {
+    chunks: HashMap<ChunkId, Entity>,
+}
+
+impl ChunkLookup {
+    pub fn insert(&mut self, pos: ChunkId, entity: Entity) {
+        self.chunks.insert(pos, entity);
+    }
+
+    pub fn remove(&mut self, pos: &ChunkId) {
+        self.chunks.remove(pos);
+    }
+
+    pub fn get(&self, pos: &ChunkId) -> Option<Entity> {
+        self.chunks.get(pos).cloned()
     }
 }

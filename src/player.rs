@@ -4,7 +4,11 @@ use bevy::{
     window::{CursorOptions, PrimaryWindow},
 };
 
-use crate::GameState;
+use crate::{
+    GameState,
+    map::{CHUNK_SIZE, Chunk, ChunkData, ChunkId, ChunkLookup, LoD, MeshGenerator},
+    rendering::CustomMaterial,
+};
 
 pub struct PlayerPlugin;
 
@@ -21,10 +25,14 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(OnEnter(GameState::Playing), hide_cursor)
             .add_systems(OnExit(GameState::Playing), show_cursor);
+
+        app.add_observer(move_the_universe_not_the_ship)
+            .add_systems(First, detect_chunk_transition);
     }
 }
 
 #[derive(Component)]
+#[require(ChunkId)]
 pub struct PlayerEntity;
 
 fn spawn_player(mut commands: Commands) {
@@ -171,4 +179,71 @@ pub fn show_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>)
 pub fn hide_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
     windows.visible = false;
     windows.grab_mode = bevy::window::CursorGrabMode::Locked;
+}
+
+pub fn detect_chunk_transition(
+    mut player: Single<(&Transform, &mut ChunkId), With<PlayerEntity>>,
+    mut commands: Commands,
+) {
+    let pos = ChunkId::from_translation(player.0.translation);
+    if pos != ChunkId::ZERO {
+        println!("Player moved to chunk {:?}", pos);
+        *player.1 = *player.1 + pos;
+        commands.trigger(MoveWorld(*pos));
+    }
+}
+
+fn move_the_universe_not_the_ship(
+    trigger: On<MoveWorld>,
+    mut player: Single<&mut Transform, With<PlayerEntity>>,
+    chunks: Query<(&ChunkId, &Chunk)>,
+    mats: Query<&MeshMaterial3d<CustomMaterial>>,
+    mut materials: ResMut<Assets<CustomMaterial>>,
+    chunk_data: Res<Assets<ChunkData>>,
+    lookup: Res<ChunkLookup>,
+    mut commands: Commands,
+    map_gen: Res<MeshGenerator>,
+) {
+    let offset = trigger.offset();
+    player.translation = Vec3::splat(16.);
+
+    for material in &mats {
+        let Some(matt) = materials.get_mut(material.id()) else {
+            continue;
+        };
+        matt.data = map_gen.dummy_image();
+    }
+
+    for (id, data) in chunks.iter() {
+        let next = *id + **trigger;
+        let Some(next) = lookup.get(&next) else {
+            // error!("no next");
+            continue;
+        };
+        let Ok(material) = mats.get(next) else {
+            // error!("Failed to get chunk");
+            continue;
+        };
+        let Some(chunk) = chunk_data.get(data.data.id()) else {
+            // error!("Chunk data missing");
+            continue;
+        };
+        let Some(matt) = materials.get_mut(material.id()) else {
+            // error!("Material missing");
+            continue;
+        };
+        if let Some(image) = &chunk.images {
+            matt.data = image.clone();
+        }
+        commands.entity(next).insert((data.clone(), *id));
+    }
+}
+
+#[derive(Event, Deref)]
+struct MoveWorld(IVec3);
+
+impl MoveWorld {
+    fn offset(&self) -> Vec3 {
+        (self.0 * CHUNK_SIZE as i32).as_vec3()
+    }
 }

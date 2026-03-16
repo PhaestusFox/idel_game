@@ -1,5 +1,8 @@
+use std::ops::{Add, Sub};
+
 use bevy::{
     asset::RenderAssetUsages,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     image::{TextureFormatPixelInfo, Volume},
     mesh::PrimitiveTopology,
     render::render_resource::Extent3d,
@@ -13,13 +16,14 @@ const STEP: f64 = 2. / CHUNK_SIZE as f64;
 pub const TRC: f32 = 1.;
 pub const BLC: f32 = -1.;
 
-use crate::map::map_gen::MapDescriptor;
+use crate::{map::map_gen::MapDescriptor, player::PlayerEntity};
 
 use super::*;
 
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct ChunkData {
     blocks: [Block; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
+    pub images: Option<Handle<Image>>,
 }
 
 impl ChunkData {
@@ -109,7 +113,7 @@ impl ChunkData {
         image
     }
 
-    pub fn generate(pos: IVec3, map_descriptor: &MapDescriptor) -> (Self, Image) {
+    pub fn generate(pos: IVec3, map_descriptor: &MapDescriptor, asset_server: AssetServer) -> Self {
         let mut data = Self::empty();
         for z in 0..CHUNK_SIZE as u8 {
             for y in 0..CHUNK_SIZE as u8 {
@@ -121,8 +125,9 @@ impl ChunkData {
                 }
             }
         }
-        let image = data.to_image();
-        (data, image)
+        let image = asset_server.add(data.to_image());
+        data.images = Some(image);
+        data
     }
 
     #[inline(always)]
@@ -134,6 +139,7 @@ impl ChunkData {
     pub fn empty() -> Self {
         Self {
             blocks: [Block::Void; CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE],
+            images: None,
         }
     }
 
@@ -161,22 +167,75 @@ impl ChunkData {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Chunk {
     pub lod_hint: LoD,
     pub data: Handle<ChunkData>,
 }
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[component(on_insert = Self::on_insert, on_remove = Self::on_remove)]
 pub struct ChunkId(IVec3);
 
 impl ChunkId {
+    pub fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        // Todo remove this. the player is being ignored so they dont eat the map
+        if world.get::<PlayerEntity>(ctx.entity).is_some() {
+            return;
+        }
+        let id = *world.get::<ChunkId>(ctx.entity).unwrap();
+        world.resource_mut::<ChunkLookup>().insert(id, ctx.entity);
+    }
+    pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let id = *world.get::<ChunkId>(ctx.entity).unwrap();
+        world.resource_mut::<ChunkLookup>().remove(&id);
+    }
+}
+
+impl Default for ChunkId {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl ChunkId {
+    pub const ZERO: Self = Self(IVec3::ZERO);
+
     pub fn new(pos: IVec3) -> Self {
+        Self(pos)
+    }
+
+    pub fn from_translation(translation: Vec3) -> Self {
+        let pos = (translation / CHUNK_SIZE as f32).floor().as_ivec3();
         Self(pos)
     }
 
     pub fn offset(&self) -> Vec3 {
         (self.0 * CHUNK_SIZE as i32).as_vec3()
+    }
+}
+
+impl Add for ChunkId {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Sub for ChunkId {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Add<IVec3> for ChunkId {
+    type Output = Self;
+
+    fn add(self, rhs: IVec3) -> Self::Output {
+        Self(self.0 + rhs)
     }
 }
 
