@@ -50,10 +50,12 @@ fn fragment(
     }
 
     let c = textureSample(material_color_texture, material_color_sampler, vec2(f32(block_id) / 255. + (1 / 512.), 0.5));
-	if c.a < 0.2 { discard; }
+    if c.a < 0.2 { discard; }
 
-    let l = (add_light(mesh.world_normal, mesh.world_position) / 10.) + vec3(0.1); // add some ambient lighting so that unlit faces aren't pitch black
-    return c * vec4(clamp(l.x, 0.0, 1.0), clamp(l.y, 0.0, 1.0), clamp(l.z, 0.0, 1.0), 1.0);
+		let l = apply_light(c, mesh.world_position, mesh.world_normal);
+		return l;
+    //let l = (add_light(mesh.world_normal, mesh.world_position) / 10.) + vec3(0.1); // add some ambient lighting so that unlit faces aren't pitch black
+    //return c * vec4(clamp(l.x, 0.0, 1.0), clamp(l.y, 0.0, 1.0), clamp(l.z, 0.0, 1.0), 1.0);
 }
 
 fn resolve_pos(mesh: VertexOutput) -> vec3u {
@@ -93,17 +95,17 @@ fn shading_of_normal(normal: vec3f) -> f32 {
         return 0.0; // default
     }
     else if normal.y > 0.5 {
-        return 0.75; // bottom
+        return 0.90; // bottom
     } else if normal.y < -0.5 {
         return 1; // top
     } else if normal.x > 0.5 {
-        return 0.85; // right
+        return 0.94; // right
     } else if normal.x < -0.5 {
-        return 0.95; // left
+        return 0.98; // left
     } else if normal.z > 0.5 {
-        return 0.90; // front
+        return 0.96; // front
     } else {
-        return 0.80; // back
+        return 0.92; // back
     }
 }
 
@@ -158,6 +160,34 @@ struct DirectionalCascade {
 
 const LAYER_BASE: u32 = 0;
 const LAYER_CLEARCOAT: u32 = 1;
+
+const AMBIENT_LIGHT: f32 = 0.001;
+
+fn apply_light(color: vec4f, position:vec4f, normal: vec3f) -> vec4f {
+  let view_dir = pbr_functions::calculate_view(position, false);
+
+  var light = (AMBIENT_LIGHT * (1. - max(dot(normal, view_dir), 0)));
+
+	for(var i = 0u; i < lights.n_directional_lights; i++){
+        let curr = lights.directional_lights[i];
+
+		let top = pow(max(dot(vec3(0,1.,0), curr.direction_to_light), 0), 2 + f32(i));
+		if(top > 0) {
+			let R = reflect(view_dir, normal);
+			let direct = dot(R, curr.direction_to_light);
+			if(direct > 0) {
+				light += direct * top;
+			}
+
+			let passive = dot(normal, curr.direction_to_light);
+			if(passive > 0) {
+				light += passive * top;
+			}
+		}
+	}
+
+	return color * clamp(light, 0.01, 1.0);
+}
 
 fn add_light(world_normal: vec3<f32>, world_position: vec4<f32>) -> vec3f {
     let view_normal = pbr_functions::calculate_view(world_position, false);
