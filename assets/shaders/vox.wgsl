@@ -53,7 +53,7 @@ fn fragment(
     if c.a < 0.2 { discard; }
 
 		let l = apply_light(c, mesh.world_position, mesh.world_normal);
-		return l;
+		return l* shading_of_normal(mesh.world_normal);
     //let l = (add_light(mesh.world_normal, mesh.world_position) / 10.) + vec3(0.1); // add some ambient lighting so that unlit faces aren't pitch black
     //return c * vec4(clamp(l.x, 0.0, 1.0), clamp(l.y, 0.0, 1.0), clamp(l.z, 0.0, 1.0), 1.0);
 }
@@ -161,7 +161,7 @@ struct DirectionalCascade {
 const LAYER_BASE: u32 = 0;
 const LAYER_CLEARCOAT: u32 = 1;
 
-const AMBIENT_LIGHT: f32 = 0.001;
+const AMBIENT_LIGHT: f32 = 0.01;
 
 fn apply_light(color: vec4f, position:vec4f, normal: vec3f) -> vec4f {
   let view_dir = pbr_functions::calculate_view(position, false);

@@ -3,6 +3,7 @@ use std::sync::RwLock;
 
 use bevy::ecs::entity;
 use bevy::ecs::lifecycle::HookContext;
+use bevy::ecs::system::SystemParam;
 use bevy::ecs::world::DeferredWorld;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::Task};
 
@@ -29,7 +30,7 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE: i32 = 20;
+const MAP_SIZE: i32 = 8;
 const MAP_DEPTH: i32 = 3;
 fn spawn_test_chunk(
     mut commands: Commands,
@@ -289,8 +290,8 @@ fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>
 }
 
 impl Block {
-    fn is_solid(&self) -> bool {
-        matches!(self, Block::Void) == false
+    pub fn is_solid(&self) -> bool {
+        !matches!(self, Block::Void)
     }
     fn color(&self) -> Color {
         use bevy::color::palettes::css::*;
@@ -455,4 +456,37 @@ impl std::ops::Sub<ChunkBlock> for ChunkId {
         let s = *rhs * CHUNK_BLOCK_SIZE;
         ChunkId::new(*self - s)
     }
+}
+
+#[derive(SystemParam)]
+pub struct Map<'w> {
+    lookup: Res<'w, ChunkLookup>,
+    data: Res<'w, Assets<ChunkData>>,
+    world_offset: Res<'w, ChunkId>,
+}
+
+impl<'w> Map<'w> {
+    pub fn get_block(&self, pos: Vec3, chunks: Query<&Chunk>) -> Result<Block, MapError> {
+        let pos = pos.floor() + Vec3::splat(CHUNK_SIZE as f32 * 0.5);
+        let chunk_id = ChunkId::from_translation(pos) + *self.world_offset;
+        let Some(chunk_entity) = self.lookup.get(&chunk_id) else {
+            return Err(MapError::NoEntity);
+        };
+        let Ok(chunk) = chunks.get(chunk_entity) else {
+            return Err(MapError::NoChunk);
+        };
+        let Some(chunk_data) = self.data.get(&chunk.data) else {
+            return Err(MapError::NoChunkData);
+        };
+        let foot = (pos).as_ivec3().rem_euclid(IVec3::splat(CHUNK_SIZE as i32));
+        let block = chunk_data.get_block(foot.x as u8, foot.y as u8, foot.z as u8);
+        Ok(block)
+    }
+}
+
+pub enum MapError {
+    NoEntity,
+    NoChunk,
+    NoChunkData,
+    NoBlock,
 }

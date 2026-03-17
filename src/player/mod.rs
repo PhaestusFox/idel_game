@@ -24,6 +24,7 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(player_controller::PlayerControllerPlugin);
         app.configure_sets(
             PreUpdate,
             PlayerMovement.run_if(in_state(GameState::Playing)),
@@ -50,25 +51,31 @@ impl Plugin for PlayerPlugin {
 pub struct PlayerEntity;
 
 fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn((
-        Name::new("PlayerCamera"),
-        Camera3d::default(),
-        Transform::from_xyz(0.0, 3.0, 6.0).looking_at(Vec3::ZERO, Vec3::Y),
-        PlayerEntity,
-        Atmosphere::earthlike(asset_server.add(ScatteringMedium::default())),
-        AtmosphereSettings::default(),
-        Bloom::NATURAL,
-        VolumetricFog {
-            ambient_intensity: 0.1,
-            ..default()
-        },
-        Msaa::Off,
-        bevy::camera::Exposure { ev100: 13.0 },
-        Fxaa::default(),
-        DistanceFog::default(),
-        crate::physics::Velocity::default(),
-        Weightless,
-    ));
+    commands
+        .spawn((
+            Name::new("Player"),
+            Transform::from_xyz(0.0, 10.0, 0.0),
+            Weightless,
+            Visibility::Visible,
+            crate::physics::Velocity::default(),
+            PlayerEntity,
+        ))
+        .with_child((
+            Name::new("PlayerCamera"),
+            Camera3d::default(),
+            Transform::from_xyz(0.0, 1.75, 0.).looking_at(Vec3::ZERO, Vec3::Y),
+            Atmosphere::earthlike(asset_server.add(ScatteringMedium::default())),
+            AtmosphereSettings::default(),
+            Bloom::NATURAL,
+            VolumetricFog {
+                ambient_intensity: 0.1,
+                ..default()
+            },
+            Msaa::Off,
+            bevy::camera::Exposure { ev100: 13.0 },
+            Fxaa::default(),
+            DistanceFog::default(),
+        ));
 }
 
 #[derive(Resource)]
@@ -154,7 +161,7 @@ impl MoveWorld {
 }
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
-enum MoveMode {
+pub enum MoveMode {
     #[default]
     Fly,
     Walk,
@@ -177,7 +184,8 @@ impl Default for CameraSettings {
 
 fn player_look(
     mouse_movement: Res<AccumulatedMouseMotion>,
-    mut player: Single<&mut Transform, With<PlayerEntity>>,
+    mut player: Single<(&mut Transform, &Children), With<PlayerEntity>>,
+    mut camera: Query<&mut Transform, (With<Camera3d>, Without<PlayerEntity>)>,
     settings: Res<CameraSettings>,
     cursor: Single<&CursorOptions, With<PrimaryWindow>>,
 ) {
@@ -188,11 +196,17 @@ fn player_look(
     if settings.invert_look_y {
         delta.y = -delta.y;
     }
-    let (mut yaw, mut pitch, _) = player.rotation.to_euler(EulerRot::YXZ);
-    yaw -= delta.x.to_radians();
+    let Ok(mut camera) = camera.get_mut(player.1[0]) else {
+        error!("Player camera entity was despawned");
+        return;
+    };
+    let (_, mut pitch, _) = camera.rotation.to_euler(EulerRot::YXZ);
+    // let (mut yaw, _, _) = player.0.rotation.to_euler(EulerRot::YXZ);
+    // yaw -= delta.x.to_radians();
     pitch -= delta.y.to_radians();
     pitch = pitch.clamp(-core::f32::consts::FRAC_PI_2, core::f32::consts::FRAC_PI_2);
-    player.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+    camera.rotation = Quat::from_euler(EulerRot::YXZ, 0., pitch, 0.0);
+    player.0.rotate_y(-delta.x.to_radians());
 }
 
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]

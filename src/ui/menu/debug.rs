@@ -2,6 +2,8 @@ use bevy::{
     diagnostic::DiagnosticsStore, log::tracing_subscriber::fmt::format, window::PrimaryWindow,
 };
 
+use crate::player::MoveMode;
+
 use super::*;
 
 pub struct DebugMenu;
@@ -21,7 +23,11 @@ impl Menu for DebugMenu {
     }
 }
 
-fn open_debug_menu(mut commands: Commands, root: Single<Entity, With<MenuRoot>>) {
+fn open_debug_menu(
+    mut commands: Commands,
+    root: Single<Entity, With<MenuRoot>>,
+    mode: Res<State<MoveMode>>,
+) {
     let mut root = commands.entity(*root);
     let clean = DespawnOnExit(DebugMenu::id());
     root.with_child((
@@ -32,8 +38,16 @@ fn open_debug_menu(mut commands: Commands, root: Single<Entity, With<MenuRoot>>)
     root.with_child((
         checkbox((), Spawn((Text::new("Cap 60 FPS"), ThemedText))),
         observe(toggle_cap),
+        clean.clone(),
+    ));
+    let fly = root.with_child((
+        checkbox((), Spawn((Text::new("Fly"), ThemedText))),
+        observe(toggle_fly),
         clean,
     ));
+    if *mode.get() == MoveMode::Fly {
+        fly.insert(Checked);
+    }
 }
 
 #[derive(Component)]
@@ -110,5 +124,19 @@ fn toggle_cap(
         commands.entity(trigger.source).remove::<Checked>();
         // disable cap
         window.present_mode = bevy::window::PresentMode::AutoNoVsync;
+    }
+}
+
+fn toggle_fly(
+    trigger: On<ValueChange<bool>>,
+    mut commands: Commands,
+    mut mode: ResMut<NextState<MoveMode>>,
+) {
+    if trigger.value {
+        commands.entity(trigger.source).insert(Checked);
+        mode.set(MoveMode::Fly);
+    } else {
+        commands.entity(trigger.source).remove::<Checked>();
+        mode.set(MoveMode::Walk);
     }
 }

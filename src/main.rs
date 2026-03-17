@@ -44,7 +44,7 @@ fn main() {
     app.add_plugins(rendering::VoxelRenderingPlugin);
     app.init_state::<GameState>();
     app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
-    // app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
+    app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
     app.run();
 }
 
