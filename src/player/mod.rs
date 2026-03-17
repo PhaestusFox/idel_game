@@ -11,24 +11,33 @@ use bevy::{
 use crate::{
     GameState,
     map::{CHUNK_SIZE, Chunk, ChunkBlock, ChunkData, ChunkId, ChunkLookup, LoD, MeshGenerator},
+    physics::Weightless,
     rendering::CustomMaterial,
 };
+
+mod fly_camera;
+pub use fly_camera::FlyCameraSettings;
+
+mod player_controller;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(
+            PreUpdate,
+            PlayerMovement.run_if(in_state(GameState::Playing)),
+        );
+
+        app.init_state::<MoveMode>();
+
         app.init_resource::<MoveBindings>()
-            .init_resource::<FlyCameraSettings>()
-            .add_systems(Startup, spawn_player)
-            .add_systems(
-                Update,
-                ((player_look, move_player)
-                    .chain()
-                    .run_if(in_state(GameState::Playing)),),
-            )
+            .init_resource::<CameraSettings>()
+            .add_plugins(fly_camera::FlyPlugin)
             .add_systems(OnEnter(GameState::Playing), hide_cursor)
             .add_systems(OnExit(GameState::Playing), show_cursor);
+
+        app.add_systems(PreUpdate, player_look.in_set(PlayerMovement));
 
         app.add_observer(move_the_universe_not_the_ship)
             .add_systems(First, detect_chunk_transition)
@@ -57,6 +66,8 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         bevy::camera::Exposure { ev100: 13.0 },
         Fxaa::default(),
         DistanceFog::default(),
+        crate::physics::Velocity::default(),
+        Weightless,
     ));
 }
 
@@ -85,68 +96,14 @@ impl Default for MoveBindings {
     }
 }
 
-#[derive(Resource)]
-pub struct FlyCameraSettings {
-    pub move_speed: f32,
-    pub look_sensitivity: f32,
-    pub invert_look_y: bool,
-    pub boost_multiplier: f32,
+pub fn show_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+    windows.visible = true;
+    windows.grab_mode = bevy::window::CursorGrabMode::None;
 }
 
-impl Default for FlyCameraSettings {
-    fn default() -> Self {
-        Self {
-            move_speed: 32.,
-            look_sensitivity: 0.05,
-            invert_look_y: false,
-            boost_multiplier: 33.0,
-        }
-    }
-}
-
-fn move_player(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    move_bindings: Res<MoveBindings>,
-    settings: Res<FlyCameraSettings>,
-    mut player: Single<&mut Transform, With<PlayerEntity>>,
-) {
-    let forward = {
-        let mut v = *player.forward();
-        v.y = 0.0;
-        v.normalize_or_zero()
-    };
-    let right = {
-        let mut v = *player.right();
-        v.y = 0.0;
-        v.normalize_or_zero()
-    };
-
-    let mut input = Vec2::ZERO;
-    if keyboard_input.pressed(move_bindings.forward) {
-        input.y += 1.0;
-    }
-    if keyboard_input.pressed(move_bindings.backward) {
-        input.y -= 1.0;
-    }
-    if keyboard_input.pressed(move_bindings.right) {
-        input.x += 1.0;
-    }
-    if keyboard_input.pressed(move_bindings.left) {
-        input.x -= 1.0;
-    }
-
-    let mut move_dir = (right * input.x + forward * input.y).normalize_or_zero();
-    if keyboard_input.pressed(move_bindings.fly_up) {
-        move_dir.y += 1.0;
-    }
-    if keyboard_input.pressed(move_bindings.fly_down) {
-        move_dir.y -= 1.0;
-    }
-    if keyboard_input.pressed(move_bindings.boost) {
-        move_dir *= settings.boost_multiplier;
-    }
-    player.translation += move_dir * settings.move_speed * time.delta_secs();
+pub fn hide_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+    windows.visible = false;
+    windows.grab_mode = bevy::window::CursorGrabMode::Locked;
 }
 
 fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
@@ -160,36 +117,6 @@ fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
             windows.grab_mode = bevy::window::CursorGrabMode::None;
         }
     }
-}
-
-fn player_look(
-    mouse_movement: Res<AccumulatedMouseMotion>,
-    mut player: Single<&mut Transform, With<PlayerEntity>>,
-    settings: Res<FlyCameraSettings>,
-    cursor: Single<&CursorOptions, With<PrimaryWindow>>,
-) {
-    if matches!(cursor.grab_mode, bevy::window::CursorGrabMode::None) {
-        return;
-    }
-    let mut delta = mouse_movement.delta * settings.look_sensitivity;
-    if settings.invert_look_y {
-        delta.y = -delta.y;
-    }
-    let (mut yaw, mut pitch, _) = player.rotation.to_euler(EulerRot::YXZ);
-    yaw -= delta.x.to_radians();
-    pitch -= delta.y.to_radians();
-    pitch = pitch.clamp(-core::f32::consts::FRAC_PI_2, core::f32::consts::FRAC_PI_2);
-    player.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
-}
-
-pub fn show_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
-    windows.visible = true;
-    windows.grab_mode = bevy::window::CursorGrabMode::None;
-}
-
-pub fn hide_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
-    windows.visible = false;
-    windows.grab_mode = bevy::window::CursorGrabMode::Locked;
 }
 
 pub fn detect_chunk_transition(
@@ -225,3 +152,48 @@ impl MoveWorld {
         (self.0 * CHUNK_SIZE as i32).as_vec3()
     }
 }
+
+#[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
+enum MoveMode {
+    #[default]
+    Fly,
+    Walk,
+}
+
+#[derive(Resource)]
+pub struct CameraSettings {
+    pub look_sensitivity: f32,
+    pub invert_look_y: bool,
+}
+
+impl Default for CameraSettings {
+    fn default() -> Self {
+        Self {
+            look_sensitivity: 0.05,
+            invert_look_y: false,
+        }
+    }
+}
+
+fn player_look(
+    mouse_movement: Res<AccumulatedMouseMotion>,
+    mut player: Single<&mut Transform, With<PlayerEntity>>,
+    settings: Res<CameraSettings>,
+    cursor: Single<&CursorOptions, With<PrimaryWindow>>,
+) {
+    if matches!(cursor.grab_mode, bevy::window::CursorGrabMode::None) {
+        return;
+    }
+    let mut delta = mouse_movement.delta * settings.look_sensitivity;
+    if settings.invert_look_y {
+        delta.y = -delta.y;
+    }
+    let (mut yaw, mut pitch, _) = player.rotation.to_euler(EulerRot::YXZ);
+    yaw -= delta.x.to_radians();
+    pitch -= delta.y.to_radians();
+    pitch = pitch.clamp(-core::f32::consts::FRAC_PI_2, core::f32::consts::FRAC_PI_2);
+    player.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+}
+
+#[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]
+struct PlayerMovement;

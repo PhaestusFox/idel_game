@@ -1,4 +1,4 @@
-use crate::player::FlyCameraSettings;
+use crate::player::{CameraSettings, FlyCameraSettings};
 
 use super::*;
 
@@ -15,7 +15,8 @@ impl Menu for CameraSettingsMenu {
 fn open_camera_settings_menu(
     mut commands: Commands,
     root: Single<Entity, With<MenuRoot>>,
-    settings: Res<FlyCameraSettings>,
+    settings: Res<CameraSettings>,
+    fly_settings: Res<FlyCameraSettings>,
 ) {
     let dso = DespawnOnExit(CameraSettingsMenu::id());
     let mut root = commands.entity(*root);
@@ -30,7 +31,7 @@ fn open_camera_settings_menu(
         ),
         observe(
             |change: On<ValueChange<f32>>,
-             mut settings: ResMut<FlyCameraSettings>,
+             mut settings: ResMut<CameraSettings>,
              mut commands: Commands| {
                 settings.look_sensitivity = change.value;
                 commands
@@ -44,7 +45,7 @@ fn open_camera_settings_menu(
     root.with_child((
         slider(
             SliderProps {
-                value: settings.move_speed,
+                value: fly_settings.move_speed,
                 min: 5.,
                 max: 20.,
             },
@@ -66,7 +67,7 @@ fn open_camera_settings_menu(
     root.with_child((
         slider(
             SliderProps {
-                value: settings.boost_multiplier,
+                value: fly_settings.boost_multiplier,
                 min: 0.5,
                 max: 5.0,
             },
@@ -89,7 +90,7 @@ fn open_camera_settings_menu(
         dso,
         observe(
             |check: On<ValueChange<bool>>,
-             mut settings: ResMut<FlyCameraSettings>,
+             mut settings: ResMut<CameraSettings>,
              mut commands: Commands| {
                 settings.invert_look_y = check.value;
                 if check.value {

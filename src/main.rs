@@ -7,6 +7,8 @@ use bevy::{
 use player::PlayerPlugin;
 use ui::UiPlugin;
 
+mod physics;
+
 fn main() {
     let mut app = App::new();
     let mut tpo = TaskPoolOptions::default();
@@ -33,7 +35,12 @@ fn main() {
         Update,
         debug::spawn_test_cube.run_if(input_just_pressed(KeyCode::F10)),
     );
-    app.add_plugins((PlayerPlugin, UiPlugin, map::MapPlugin));
+    app.add_plugins((
+        PlayerPlugin,
+        UiPlugin,
+        map::MapPlugin,
+        physics::PhysicsPlugin,
+    ));
     app.add_plugins(rendering::VoxelRenderingPlugin);
     app.init_state::<GameState>();
     app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
