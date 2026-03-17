@@ -162,8 +162,8 @@ const LAYER_CLEARCOAT: u32 = 1;
 fn add_light(world_normal: vec3<f32>, world_position: vec4<f32>) -> vec3f {
     let view_normal = pbr_functions::calculate_view(world_position, false);
     // let view_normal = vec3(0.);
-    let NdotV = max(dot(world_normal, view_normal), 0.0001);
-    let R = reflect(-view_normal, world_normal);
+    let NdotV = dot(world_normal, view_normal);
+    let R = reflect(view_normal, world_normal);
 
     var lighting_input: LightingInput;
     lighting_input.layers[LAYER_BASE].NdotV = NdotV;
@@ -181,7 +181,7 @@ fn add_light(world_normal: vec3<f32>, world_position: vec4<f32>) -> vec3f {
 #ifdef STANDARD_MATERIAL_ANISOTROPY
     lighting_input.anisotropy = 1.;
     lighting_input.Ta = vec3(1., 0., 0.);
-    lighting_input.Ba = vec3(0., 1., 0.);
+    lighting_input.Ba = cross(world_normal, lighting_input.Ta); 
 #endif  // STANDARD_MATERIAL_ANISOTROPY
     var direct_light: vec3<f32> = vec3<f32>(0.0);
     // directional lights (direct)
