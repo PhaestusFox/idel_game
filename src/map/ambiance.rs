@@ -36,8 +36,9 @@ fn spawn_sun(mut commands: Commands) {
     // ));
 }
 
+const DAY_LENGTH: f32 = 10.; //In seconds
 fn day_night(mut suns: Query<&mut Transform, With<DirectionalLight>>, time: Res<Time>) {
     for mut sun in &mut suns {
-        sun.rotate_x(time.delta_secs() * core::f32::consts::PI / 10.0); // PI radians in 300 seconds, or one full rotation every 600 seconds
+        sun.rotate_x(time.delta_secs() * core::f32::consts::PI * 2. / DAY_LENGTH); 
     }
 }
