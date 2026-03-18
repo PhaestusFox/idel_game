@@ -173,7 +173,7 @@ fn apply_light(color: vec4f, position:vec4f, normal: vec3f) -> vec4f {
 		let curr = lights.directional_lights[i];
 
 		let top = max(dot(vec3(0,1,0), curr.direction_to_light), 0);
-        let pow = curr.color.r / 256.;
+        let pow = 1 / curr.color.r;
 		if(top > 0) {
 			let R = reflect(view_dir, normal);
 			let direct = dot(R, curr.direction_to_light);
@@ -183,7 +183,7 @@ fn apply_light(color: vec4f, position:vec4f, normal: vec3f) -> vec4f {
 
 			let passive = dot(normal, curr.direction_to_light);
 			if(passive > 0) {
-				light += passive * top * pow;
+				light += passive * top;
 			}
 		}
 	}

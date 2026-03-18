@@ -30,16 +30,17 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE: i32 = 10;
-const MAP_DEPTH: i32 = 4;
+const MAP_SIZE_Z: i32 = 3;
+const MAP_SIZE_X: i32 = 128;
+const MAP_DEPTH: i32 = 3;
 fn spawn_test_chunk(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
-    for x in -MAP_SIZE..MAP_SIZE {
+    for x in -MAP_SIZE_X..MAP_SIZE_X {
         for y in -MAP_DEPTH..MAP_DEPTH {
-            for z in -MAP_SIZE..MAP_SIZE {
+            for z in -MAP_SIZE_Z..MAP_SIZE_Z {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
         }
