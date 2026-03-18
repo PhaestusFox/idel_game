@@ -131,9 +131,8 @@ pub fn detect_chunk_transition(
     mut commands: Commands,
 ) {
     let pos = ChunkId::from_translation(player.translation);
-    if pos != ChunkId::ZERO {
-        println!("Player moved to chunk {:?}", pos);
-        commands.trigger(MoveWorld(*pos));
+    if pos.abs().max_element() > 1 {
+        commands.trigger(MoveWorld(pos.clamp(IVec3::NEG_ONE, IVec3::ONE)));
     }
 }
 
@@ -147,7 +146,6 @@ fn move_the_universe_not_the_ship(
     for mut block in &mut transforms {
         block.translation -= trigger.offset();
     }
-    println!("Moving world by {:?}", world_offset);
     *world_offset += trigger.0;
 }
 

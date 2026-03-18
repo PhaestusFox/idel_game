@@ -100,7 +100,6 @@ fn jump(
             .get_block(transform.translation + Vec3::new(0., 2.1, 0.), chunks)
             .map_or(true, |b| !b.is_solid())
     {
-        velocity.y += physics::Gravity::GRAVITY_STRENGTH * 0.5;
-        transform.translation.y += 0.5;
+        velocity.y += physics::Gravity::GRAVITY_STRENGTH * 0.25;
     }
 }
