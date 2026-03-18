@@ -113,18 +113,9 @@ impl ChunkData {
         image
     }
 
+    #[inline(always)]
     pub fn generate(pos: IVec3, map_descriptor: &MapDescriptor, asset_server: AssetServer) -> Self {
-        let mut data = Self::empty();
-        for z in 0..CHUNK_SIZE as u8 {
-            for y in 0..CHUNK_SIZE as u8 {
-                for x in 0..CHUNK_SIZE as u8 {
-                    let block_pos =
-                        pos * CHUNK_SIZE as i32 + IVec3::new(x as i32, y as i32, z as i32);
-                    let block = map_descriptor.get_block(block_pos);
-                    data.set_block(x, y, z, block);
-                }
-            }
-        }
+        let mut data = map_descriptor.generate_chunk(ChunkId::new(pos));
         let image = asset_server.add(data.to_image());
         data.images = Some(image);
         data
@@ -150,6 +141,9 @@ impl ChunkData {
     #[inline(always)]
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> Block {
         let i = Self::get_index(x, y, z);
+        if i >= self.blocks.len() {
+            return Block::Void;
+        }
         self.blocks[i]
     }
 

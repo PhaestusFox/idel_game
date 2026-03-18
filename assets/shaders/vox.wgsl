@@ -53,7 +53,8 @@ fn fragment(
     if c.a < 0.2 { discard; }
 
 		let l = apply_light(c, mesh.world_position, mesh.world_normal);
-		return l* shading_of_normal(mesh.world_normal);
+        let face = shading_of_normal(mesh.world_normal);
+		return l * face;
     //let l = (add_light(mesh.world_normal, mesh.world_position) / 10.) + vec3(0.1); // add some ambient lighting so that unlit faces aren't pitch black
     //return c * vec4(clamp(l.x, 0.0, 1.0), clamp(l.y, 0.0, 1.0), clamp(l.z, 0.0, 1.0), 1.0);
 }
@@ -161,32 +162,33 @@ struct DirectionalCascade {
 const LAYER_BASE: u32 = 0;
 const LAYER_CLEARCOAT: u32 = 1;
 
-const AMBIENT_LIGHT: f32 = 0.01;
+const AMBIENT_LIGHT: f32 = 0.1;
 
 fn apply_light(color: vec4f, position:vec4f, normal: vec3f) -> vec4f {
   let view_dir = pbr_functions::calculate_view(position, false);
 
-  var light = (AMBIENT_LIGHT * (1. - max(dot(normal, view_dir), 0)));
+  var light = AMBIENT_LIGHT * (1 - max(dot(normal, view_dir), 0));
 
 	for(var i = 0u; i < lights.n_directional_lights; i++){
-        let curr = lights.directional_lights[i];
+		let curr = lights.directional_lights[i];
 
-		let top = pow(max(dot(vec3(0,1.,0), curr.direction_to_light), 0), 2 + f32(i));
+		let top = max(dot(vec3(0,1,0), curr.direction_to_light), 0);
+        let pow = curr.color.r / 256.;
 		if(top > 0) {
 			let R = reflect(view_dir, normal);
 			let direct = dot(R, curr.direction_to_light);
 			if(direct > 0) {
-				light += direct * top;
+				light += direct * top * pow;
 			}
 
 			let passive = dot(normal, curr.direction_to_light);
 			if(passive > 0) {
-				light += passive * top;
+				light += passive * top * pow;
 			}
 		}
 	}
 
-	return color * clamp(light, 0.01, 1.0);
+	return color * clamp(light, 0.01, 1.);
 }
 
 fn add_light(world_normal: vec3<f32>, world_position: vec4<f32>) -> vec3f {

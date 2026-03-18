@@ -64,17 +64,21 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
             Name::new("PlayerCamera"),
             Camera3d::default(),
             Transform::from_xyz(0.0, 1.75, 0.).looking_at(Vec3::ZERO, Vec3::Y),
-            Atmosphere::earthlike(asset_server.add(ScatteringMedium::default())),
+            Atmosphere {
+                top_radius: 6_560_000.,
+                bottom_radius: 6_360_000.,
+                ground_albedo: Vec3::new(0.1, 0.3, 0.1),
+                medium: asset_server.add(ScatteringMedium::earthlike(128, 128)),
+            },
             AtmosphereSettings::default(),
             Bloom::NATURAL,
             VolumetricFog {
-                ambient_intensity: 0.1,
+                ambient_intensity: 0.0,
                 ..default()
             },
             Msaa::Off,
-            bevy::camera::Exposure { ev100: 13.0 },
+            bevy::camera::Exposure { ev100: 12.0 },
             Fxaa::default(),
-            DistanceFog::default(),
         ));
 }
 

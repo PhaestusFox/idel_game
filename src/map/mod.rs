@@ -30,8 +30,8 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE: i32 = 8;
-const MAP_DEPTH: i32 = 3;
+const MAP_SIZE: i32 = 10;
+const MAP_DEPTH: i32 = 4;
 fn spawn_test_chunk(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -58,6 +58,12 @@ pub struct MeshGenerator {
     max_chunk_tasks: usize,
     que: IndexSet<IVec3>,
     world: Arc<RwLock<map_gen::MapDescriptor>>,
+    #[cfg(feature = "profile")]
+    timings: (
+        std::sync::Mutex<std::sync::mpsc::Receiver<std::time::Duration>>,
+        f32,
+        usize,
+    ),
 }
 
 impl FromWorld for MeshGenerator {
@@ -76,6 +82,9 @@ impl FromWorld for MeshGenerator {
         }
         lods.insert(LoD::Solid, asset_server.add(make_solid_mesh()));
 
+        #[cfg(feature = "profile")]
+        let (send, rec) = std::sync::mpsc::channel();
+
         Self {
             root,
             main_mesh: asset_server.add(make_baked_mesh()),
@@ -86,7 +95,12 @@ impl FromWorld for MeshGenerator {
             dirty: false,
             dummy_image: asset_server.add(ChunkData::dummy_image()),
             max_chunk_tasks: 250,
+            #[cfg(not(feature = "profile"))]
             world: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
+            #[cfg(feature = "profile")]
+            world: Arc::new(RwLock::new(map_gen::MapDescriptor::new(0, send))),
+            #[cfg(feature = "profile")]
+            timings: (std::sync::Mutex::new(rec), 0.0, 0),
         }
     }
 }
@@ -253,8 +267,33 @@ fn update_mesh_generator(
     }
     std::mem::swap(&mut tasks, &mut mesh_generator.new_tasks);
     mesh_generator.tasks = tasks;
+    #[cfg(feature = "profile")]
+    {
+        let mes_gen = mesh_generator.as_mut();
+        for time in mes_gen.timings.0.lock().unwrap().try_iter() {
+            mes_gen.timings.1 += time.as_secs_f32();
+            mes_gen.timings.2 += 1;
+        }
+    }
     if mesh_generator.tasks.is_empty() && !*done && mesh_generator.que.is_empty() {
         println!("All chunks generated");
+        #[cfg(feature = "profile")]
+        {
+            println!(
+                "Total chunk generation time: {:.2} seconds",
+                mesh_generator.timings.1
+            );
+            let avg = if mesh_generator.timings.2 > 0 {
+                mesh_generator.timings.1 / mesh_generator.timings.2 as f32
+            } else {
+                0.
+            };
+            println!(
+                "Average chunk generation time: {:.2} ms ({} samples)",
+                avg * 1000.,
+                mesh_generator.timings.2
+            );
+        }
         *done = true;
     }
     if !mesh_generator.que.is_empty() {
