@@ -66,9 +66,16 @@ fn open_debug_menu(
         observe(toggle_fly),
         clean.clone(),
     ));
+
     if *mode.get() == MoveMode::Fly {
         fly.insert(Checked);
     }
+
+    root.with_child((
+        checkbox((), Spawn((Text::new("Open Map Debug Console"), ThemedText))),
+        observe(crate::map::debug::toggle_console),
+        clean.clone(),
+    ));
     root.with_child((
         Node::DEFAULT,
         children![

@@ -45,7 +45,6 @@ impl MapDescriptor {
 
 const CHUNK_SIZE: f32 = super::chunk::CHUNK_SIZE as f32;
 
-use bevy::math::Curve;
 impl MapDescriptor {
     // pub fn get_block(&self, pos: IVec3) -> Block {
     //     let offset = pos.as_vec3() * f32::consts::PI;

@@ -10,7 +10,7 @@ pub struct WidgetPlugin;
 
 impl Plugin for WidgetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Last, anchor_drag);
+        app.add_systems(Update, anchor_drag);
     }
 }
 
@@ -43,6 +43,7 @@ impl Anchor {
             BackgroundColor(Color::WHITE.darker(0.5)),
             observe(anchor_start_drag),
             observe(anchor_end_drag),
+            GlobalZIndex(1),
         ));
     }
 }
@@ -51,7 +52,6 @@ fn anchor_drag(
     anchors: Query<&AnchorHook>,
     mut nodes: Query<&mut Node>,
     window: Single<&Window, With<PrimaryWindow>>,
-    mut total: Local<f32>,
 ) {
     let Some(pos) = window.cursor_position() else {
         return;
@@ -66,7 +66,6 @@ fn anchor_drag(
             warn!("Anchor target does not have a Node component");
             continue;
         };
-        println!("Dragging anchor with delta: {delta}");
         node.top = Val::Px(pos.y - top);
         node.left = Val::Px(pos.x - left);
     }

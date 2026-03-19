@@ -52,8 +52,12 @@ impl Default for ChunkId {
 impl ChunkId {
     pub const ZERO: Self = Self(IVec3::ZERO);
 
-    pub fn new(pos: IVec3) -> Self {
-        Self(pos)
+    pub fn new(x: i32, y: i32, z: i32) -> Self {
+        Self(IVec3::new(x, y, z))
+    }
+
+    pub fn from_ivec3(vec: IVec3) -> Self {
+        Self(vec)
     }
 
     pub fn from_translation(translation: Vec3) -> Self {

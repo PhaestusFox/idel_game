@@ -8,3 +8,8 @@
 - [ ] add regenerate map button
 - [ ] add noise editor
 - [ ] add biome editor
+
+
+# Todo Some other time
+
+- [ ] make menu into a system peramitor to make it easier to make uis

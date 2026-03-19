@@ -13,15 +13,20 @@ impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<chunk::ChunkData>();
         app.init_resource::<ChunkLookup>();
-        app.init_resource::<MeshGenerator>();
+        app.init_resource::<ChunkGenerator>();
         app.add_systems(Startup, spawn_test_chunk);
         app.add_systems(PreUpdate, hide_empty_chunks);
-        app.add_systems(Update, update_mesh_generator);
+        app.add_systems(PreUpdate, update_mesh_generator);
 
         app.add_plugins(ambiance::plugin);
+
+        app.init_resource::<MapDescriptor>();
+
+        #[cfg(debug_assertions)]
+        app.add_plugins(debug::MapDebugConsolePlugin);
     }
 }
-mod debug;
+pub mod debug;
 
 mod chunk;
 mod map_gen;
@@ -34,14 +39,10 @@ use crate::rendering::CustomMaterial;
 const MAP_SIZE_Z: i32 = 16;
 const MAP_SIZE_X: i32 = 16;
 const MAP_DEPTH: i32 = 0;
-fn spawn_test_chunk(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut chunk_manager: ResMut<MeshGenerator>,
-) {
-    for x in -MAP_SIZE_X..MAP_SIZE_X {
-        for y in -MAP_DEPTH..=MAP_DEPTH {
-            for z in -MAP_SIZE_Z..MAP_SIZE_Z {
+fn spawn_test_chunk(mut chunk_manager: ResMut<ChunkGenerator>, map: Res<MapDescriptor>) {
+    for x in -map.world_size.x..map.world_size.x {
+        for y in -map.world_size.y..=map.world_size.y {
+            for z in -map.world_size.z..map.world_size.z {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
         }
@@ -49,7 +50,22 @@ fn spawn_test_chunk(
 }
 
 #[derive(Resource)]
-pub struct MeshGenerator {
+pub struct MapDescriptor {
+    pub seed: u32,
+    pub world_size: IVec3,
+}
+
+impl Default for MapDescriptor {
+    fn default() -> Self {
+        Self {
+            seed: 0,
+            world_size: IVec3::new(MAP_SIZE_X, MAP_DEPTH, MAP_SIZE_Z),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct ChunkGenerator {
     main_mesh: Handle<Mesh>,
     meshs: HashMap<LoD, Handle<Mesh>>,
     dummy_image: Handle<Image>,
@@ -68,7 +84,7 @@ pub struct MeshGenerator {
     ),
 }
 
-impl FromWorld for MeshGenerator {
+impl FromWorld for ChunkGenerator {
     fn from_world(world: &mut World) -> Self {
         let root = world
             .spawn((
@@ -130,12 +146,13 @@ impl LoD {
     }
 }
 
-impl MeshGenerator {
+impl ChunkGenerator {
     fn generate(
         &mut self,
         commands: &mut Commands,
         asset_server: Res<AssetServer>,
         player_pos: Vec3,
+        lookup: &ChunkLookup,
     ) {
         if self.que.is_empty() {
             return;
@@ -172,20 +189,22 @@ impl MeshGenerator {
                 LoD::LOD16
             };
             let mesh = self.get_mesh(LoD::LOD1);
-            let id = ChunkId::new(chunk);
-            commands.spawn((
-                Name::new(format!("Chunk ({})", chunk)),
-                Mesh3d(mesh),
-                MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
-                    lod: lod.step(),
-                    color_texture: Some(colors.clone()),
-                    alpha_mode: AlphaMode::Opaque,
-                    data: self.dummy_image.clone(),
-                })),
-                Transform::from_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
-                ChildOf(self.root),
-                id,
-            ));
+            let id = ChunkId::from_ivec3(chunk);
+            if lookup.get(&id).is_none() {
+                commands.spawn((
+                    Name::new(format!("Chunk ({})", chunk)),
+                    Mesh3d(mesh),
+                    MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
+                        lod: lod.step(),
+                        color_texture: Some(colors.clone()),
+                        alpha_mode: AlphaMode::Opaque,
+                        data: self.dummy_image.clone(),
+                    })),
+                    Transform::from_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
+                    ChildOf(self.root),
+                    id,
+                ));
+            }
             self.tasks.insert(id, task);
         }
     }
@@ -218,7 +237,7 @@ impl MeshGenerator {
 }
 
 fn update_mesh_generator(
-    mut mesh_generator: ResMut<MeshGenerator>,
+    mut mesh_generator: ResMut<ChunkGenerator>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     chunks: Query<&MeshMaterial3d<CustomMaterial>>,
@@ -304,7 +323,7 @@ fn update_mesh_generator(
     if mesh_generator.tasks.len() > mesh_generator.max_chunk_tasks {
         return;
     }
-    mesh_generator.generate(&mut commands, asset_server, player.translation);
+    mesh_generator.generate(&mut commands, asset_server, player.translation, &lookup);
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -483,7 +502,7 @@ impl std::ops::Sub<ChunkBlock> for ChunkId {
 
     fn sub(self, rhs: ChunkBlock) -> Self::Output {
         let s = *rhs * CHUNK_BLOCK_SIZE;
-        ChunkId::new(*self - s)
+        ChunkId::from_ivec3(*self - s)
     }
 }
 
