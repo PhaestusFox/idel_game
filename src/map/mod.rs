@@ -30,9 +30,9 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE_Z: i32 = 3;
+const MAP_SIZE_Z: i32 = 1;
 const MAP_SIZE_X: i32 = 128;
-const MAP_DEPTH: i32 = 3;
+const MAP_DEPTH: i32 = 1;
 fn spawn_test_chunk(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -316,6 +316,7 @@ pub enum Block {
     BedRock = 4,
     Snow = 5,
     Sand = 6,
+    Water = 7,
     Other(u8),
 }
 
@@ -331,13 +332,14 @@ fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>
 
 impl Block {
     pub fn is_solid(&self) -> bool {
-        !matches!(self, Block::Void)
+        !matches!(self, Block::Void | Block::Water)
     }
     fn color(&self) -> Color {
         use bevy::color::palettes::css::*;
         use bevy::color::palettes::tailwind::*;
         match self {
             Block::Void => return Color::linear_rgba(0., 0., 0., 0.),
+            Block::Water => return Color::linear_rgba(0., 0., 1., 0.5),
             Block::Grass => GREEN,
             Block::Dirt => BROWN,
             Block::Stone => GRAY_500,
@@ -357,6 +359,7 @@ impl Block {
             Block::BedRock => 4,
             Block::Snow => 5,
             Block::Sand => 6,
+            Block::Water => 7,
             Block::Other(val) => 0x80000000 | (*val as u32),
         }
     }
@@ -388,6 +391,7 @@ impl Block {
             Block::BedRock => 4,
             Block::Snow => 5,
             Block::Sand => 6,
+            Block::Water => 7,
             Block::Other(id) => 128 + (*id >> 1),
         }
     }
