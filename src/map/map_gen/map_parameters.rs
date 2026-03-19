@@ -24,8 +24,7 @@ impl FromMap for GroundHeight {
     /// - The value is between -1..1<br>
     /// - -1 is as low as possible<br>
     /// - 1 is as high as possible<br>
-    /// - the actual ground hight is decided by the biome<br>
-    /// this is effecivly how out of nomral the ground height is at this point, and the biome will decide how to interpret this value
+    /// - the actual ground hight is decided by the biome<br> This is effecivly how out of nomral the ground height is at this point, and the biome will decide how to interpret this value
     fn from_map(map: &MapDescriptor, point: Self::Point) -> Self::Output {
         let p = point.as_vec2() * 0.001 * PI;
         map.sample_noise_2d(p.x, p.y) as f32

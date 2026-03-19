@@ -20,8 +20,6 @@ pub use debug::{DebugBiome, DebugBiomeType};
 use super::MapDescriptor;
 use crate::map::map_gen::map_parameters::*;
 use bevy::prelude::*;
-use noise::NoiseFn;
-use std::f32::consts::PI;
 
 use crate::map::{Block, CHUNK_SIZE};
 pub trait BiomeDescriptor: 'static + Send + Sync {

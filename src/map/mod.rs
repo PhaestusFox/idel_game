@@ -21,6 +21,7 @@ impl Plugin for MapPlugin {
         app.add_plugins(ambiance::plugin);
     }
 }
+mod debug;
 
 mod chunk;
 mod map_gen;
@@ -30,8 +31,8 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE_Z: i32 = 64;
-const MAP_SIZE_X: i32 = 64;
+const MAP_SIZE_Z: i32 = 16;
+const MAP_SIZE_X: i32 = 16;
 const MAP_DEPTH: i32 = 0;
 fn spawn_test_chunk(
     mut commands: Commands,
