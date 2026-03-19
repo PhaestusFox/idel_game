@@ -17,9 +17,8 @@ impl Lake {
 }
 
 impl BiomeDescriptor for Lake {
-    fn strength(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> Option<f32> {
-        let p = point.as_vec2() * 0.023;
-        let rainfall = noise.get([p.x as f64, p.y as f64]) as f32;
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
+        let rainfall = noise.get::<RainFall>(point) as f32;
         if rainfall > 0.3 {
             Some((1. - (rainfall - 0.3) * 3.).abs())
         } else {
@@ -29,15 +28,14 @@ impl BiomeDescriptor for Lake {
     fn generate_column(
         &self,
         origin: IVec3,
-        noise: &noise::Fbm<noise::OpenSimplex>,
+        noise: &MapDescriptor,
         ground_level: i32,
     ) -> [Block; CHUNK_SIZE] {
         let mut data = [Block::Void; CHUNK_SIZE];
         if origin.y > ground_level {
             return data;
         }
-        let pos = origin.as_vec3() * PI;
-        let d = noise.get([(pos.x * 0.1) as f64, (pos.z * 0.1) as f64]) as f32;
+        let d = noise.get::<GroundHeight>(IVec2::new(origin.x, origin.z)) as f32;
         let wl = self
             .depth_curve
             .sample_unchecked((d * 0.5 + 0.5).clamp(0., 1.)) as i32;
@@ -57,7 +55,7 @@ impl BiomeDescriptor for Lake {
         }
         data
     }
-    fn ground_height(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> f32 {
+    fn ground_height(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
         0.
     }
 }

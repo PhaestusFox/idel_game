@@ -14,6 +14,11 @@ pub use lake::Lake;
 mod ocean;
 pub use ocean::Ocean;
 
+mod debug;
+pub use debug::{DebugBiome, DebugBiomeType};
+
+use super::MapDescriptor;
+use crate::map::map_gen::map_parameters::*;
 use bevy::prelude::*;
 use noise::NoiseFn;
 use std::f32::consts::PI;
@@ -23,12 +28,12 @@ pub trait BiomeDescriptor: 'static + Send + Sync {
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
-    fn strength(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> Option<f32>;
+    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> Option<f32>;
     fn generate_column(
         &self,
         origin: IVec3,
-        noise: &noise::Fbm<noise::OpenSimplex>,
+        descriptor: &MapDescriptor,
         ground: i32,
     ) -> [Block; CHUNK_SIZE];
-    fn ground_height(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> f32;
+    fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32;
 }

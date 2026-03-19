@@ -20,21 +20,16 @@ impl BiomeDescriptor for Badland {
     fn name(&self) -> &str {
         "Badland"
     }
-    fn strength(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> Option<f32> {
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
         None
     }
     fn generate_column(
         &self,
         origin: IVec3,
-        noise: &noise::Fbm<noise::OpenSimplex>,
+        noise: &MapDescriptor,
         water_table: i32,
     ) -> [Block; CHUNK_SIZE] {
-        let pos = origin.as_vec3() * PI;
-        let ground_l = (noise.get([
-            (pos.x * 0.001) as f64,
-            (pos.z * 0.001) as f64,
-            water_table as f64 * 0.001,
-        ])) as f32;
+        let ground_l = noise.get::<GroundHeight>(IVec2::new(origin.x, origin.z)) as f32;
         let t = (ground_l * 0.5 + 0.5).clamp(0., 1.);
         let ground_level = self.ground_curve.sample_unchecked(t) as i32;
         let r_ground = (ground_level - origin.y).clamp(0, CHUNK_SIZE as i32);
@@ -47,10 +42,8 @@ impl BiomeDescriptor for Badland {
         }
         data
     }
-    fn ground_height(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> f32 {
-        let pos = point.as_vec2() * 0.001;
-        let ground_l = (noise.get([(pos.x * 0.001) as f64, (pos.y * 0.001) as f64])) as f32;
-        let t = (ground_l * 0.5 + 0.5).clamp(0., 1.);
-        self.ground_curve.sample_unchecked(t)
+    fn ground_height(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
+        let ground_l = noise.get::<GroundHeight>(point) as f32;
+        self.ground_curve.sample_unchecked(ground_l)
     }
 }

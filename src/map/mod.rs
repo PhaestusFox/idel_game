@@ -30,16 +30,16 @@ mod ambiance;
 
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE_Z: i32 = 1;
-const MAP_SIZE_X: i32 = 128;
-const MAP_DEPTH: i32 = 1;
+const MAP_SIZE_Z: i32 = 64;
+const MAP_SIZE_X: i32 = 64;
+const MAP_DEPTH: i32 = 0;
 fn spawn_test_chunk(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut chunk_manager: ResMut<MeshGenerator>,
 ) {
     for x in -MAP_SIZE_X..MAP_SIZE_X {
-        for y in -MAP_DEPTH..MAP_DEPTH {
+        for y in -MAP_DEPTH..=MAP_DEPTH {
             for z in -MAP_SIZE_Z..MAP_SIZE_Z {
                 chunk_manager.que(IVec3::new(x, y, z));
             }
@@ -148,7 +148,7 @@ impl MeshGenerator {
             .take(pool.thread_num() * 4)
             .cloned()
             .collect::<Vec<_>>();
-        let colors = asset_server.load("colors.png");
+        let colors = asset_server.load("RtoG.png");
         println!("Generating {} chunks", que.len());
         for chunk in que {
             self.que.swap_remove(&chunk);
@@ -334,22 +334,6 @@ impl Block {
     pub fn is_solid(&self) -> bool {
         !matches!(self, Block::Void | Block::Water)
     }
-    fn color(&self) -> Color {
-        use bevy::color::palettes::css::*;
-        use bevy::color::palettes::tailwind::*;
-        match self {
-            Block::Void => return Color::linear_rgba(0., 0., 0., 0.),
-            Block::Water => return Color::linear_rgba(0., 0., 1., 0.5),
-            Block::Grass => GREEN,
-            Block::Dirt => BROWN,
-            Block::Stone => GRAY_500,
-            Block::BedRock => GRAY,
-            Block::Snow => WHITE,
-            Block::Sand => SANDY_BROWN,
-            Block::Other(val) => return Color::hsl(*val as f32 * (1. / 360.), 1., 0.5),
-        }
-        .into()
-    }
     fn id(&self) -> u32 {
         match self {
             Block::Void => 0,
@@ -360,7 +344,7 @@ impl Block {
             Block::Snow => 5,
             Block::Sand => 6,
             Block::Water => 7,
-            Block::Other(val) => 0x80000000 | (*val as u32),
+            Block::Other(val) => *val as u32,
         }
     }
     fn from_id(id: u32) -> Self {
@@ -392,7 +376,7 @@ impl Block {
             Block::Snow => 5,
             Block::Sand => 6,
             Block::Water => 7,
-            Block::Other(id) => 128 + (*id >> 1),
+            Block::Other(id) => *id,
         }
     }
 }

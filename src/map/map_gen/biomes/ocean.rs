@@ -16,15 +16,14 @@ impl Ocean {
 }
 
 impl BiomeDescriptor for Ocean {
-    fn strength(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> Option<f32> {
-        let p = point.as_vec2() * 0.001;
-        let g = noise.get([p.x as f64, p.y as f64]) as f32;
+    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> Option<f32> {
+        let g = descriptor.get::<GroundHeight>(point) as f32;
         if g < 0. { Some(-g * 5.) } else { None }
     }
     fn generate_column(
         &self,
         origin: IVec3,
-        noise: &noise::Fbm<noise::OpenSimplex>,
+        descriptor: &MapDescriptor,
         ground_level: i32,
     ) -> [Block; CHUNK_SIZE] {
         let mut data = [Block::Void; CHUNK_SIZE];
@@ -40,9 +39,8 @@ impl BiomeDescriptor for Ocean {
         }
         data
     }
-    fn ground_height(&self, point: IVec2, noise: &noise::Fbm<noise::OpenSimplex>) -> f32 {
-        let pos = point.as_vec2() * 0.001;
-        let ground_l = (noise.get([pos.x as f64, pos.y as f64])) as f32;
+    fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32 {
+        let ground_l = (descriptor.get::<GroundHeight>(point)) as f32;
         let t = (ground_l * 0.5 + 0.5).clamp(0., 1.);
         -self.ground_curve.sample_unchecked(t)
     }

@@ -6,7 +6,6 @@ use noise::NoiseFn;
 pub struct MapDescriptor {
     noise: noise::Fbm<noise::OpenSimplex>,
     biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>>,
-    ground_level: f32,
     #[cfg(feature = "profile")]
     timings: std::sync::mpsc::Sender<std::time::Duration>,
 }
@@ -24,11 +23,12 @@ impl MapDescriptor {
         #[cfg(feature = "profile")] timings: std::sync::mpsc::Sender<std::time::Duration>,
     ) -> Self {
         let biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>> = RwLock::new(vec![
-            Box::new(Badland::new()),
-            Box::new(Mountain::new()),
-            Box::new(Plains::new(0.)),
-            Box::new(Desert::new(0.)),
-            Box::new(Ocean::new()),
+            // Box::new(Badland::new()),
+            // Box::new(Mountain::new()),
+            // Box::new(Plains::new(0.)),
+            // Box::new(Desert::new(0.)),
+            // Box::new(Ocean::new()),
+            Box::new(DebugBiome::new(DebugBiomeType::Height, 3)),
             // Box::new(Plains::new(-0.2)),
             // Box::new(Plains::new(0.2)),
             // Box::new(Desert::new(0.2)),
@@ -36,7 +36,6 @@ impl MapDescriptor {
         ]);
         Self {
             noise: noise::Fbm::new(seed),
-            ground_level: 32.0,
             biomes,
             #[cfg(feature = "profile")]
             timings,
@@ -105,7 +104,7 @@ impl MapDescriptor {
                 let biome = &biomes[b];
                 let origin = IVec3::new(x, 0, z) + offset;
                 for (y, block) in biome
-                    .generate_column(origin, &self.noise, ground_level)
+                    .generate_column(origin, self, ground_level)
                     .into_iter()
                     .enumerate()
                 {
@@ -128,7 +127,7 @@ impl MapDescriptor {
         let biomes = self.biomes.read().unwrap();
         let mut top3 = [(0, 0.); 3];
         for (index, biome) in biomes.iter().enumerate() {
-            if let Some(strength) = biome.strength(point, &self.noise) {
+            if let Some(strength) = biome.strength(point, self) {
                 if strength > top3[0].1 {
                     top3[2] = top3[1];
                     top3[1] = top3[0];
@@ -146,11 +145,33 @@ impl MapDescriptor {
         for (biome, weight) in top3 {
             let b = &biomes[biome];
             let w = weight / tw;
-            ground_level += w * b.ground_height(point, &self.noise);
+            ground_level += w * b.ground_height(point, self);
         }
         (top3[0].0, ground_level as i32)
     }
+
+    #[inline(always)]
+    fn get<T: FromMap>(&self, point: T::Point) -> T::Output {
+        T::from_map(self, point)
+    }
+    #[inline(always)]
+    fn sample_noise_2d(&self, x: f32, y: f32) -> f64 {
+        self.noise.get([x as f64, y as f64])
+    }
+    #[inline(always)]
+    fn sample_noise_3d(&self, x: f32, y: f32, z: f32) -> f64 {
+        self.noise.get([x as f64, y as f64, z as f64])
+    }
+}
+
+trait FromMap: Sized {
+    type Point;
+    type Output;
+    fn from_map(descriptor: &MapDescriptor, point: Self::Point) -> Self::Output;
 }
 
 mod biomes;
 use biomes::*;
+
+mod map_parameters;
+use map_parameters::*;
