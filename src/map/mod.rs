@@ -21,6 +21,7 @@ impl Plugin for MapPlugin {
         app.add_plugins(ambiance::plugin);
 
         app.init_resource::<MapDescriptor>();
+        app.init_resource::<GenerationDistance>();
 
         #[cfg(debug_assertions)]
         app.add_plugins(debug::MapDebugConsolePlugin);
@@ -35,11 +36,12 @@ use indexmap::IndexSet;
 use map_gen::biomes::*;
 mod ambiance;
 
+use crate::player::RenderDistance;
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE_Z: i32 = 16;
-const MAP_SIZE_X: i32 = 16;
-const MAP_DEPTH: i32 = 0;
+const MAP_SIZE_Z: i32 = 2;
+const MAP_SIZE_X: i32 = 160;
+const MAP_DEPTH: i32 = 3;
 fn spawn_test_chunk(mut chunk_manager: ResMut<ChunkGenerator>, map: Res<MapDescriptor>) {
     for x in -map.world_size.x..map.world_size.x {
         for y in -map.world_size.y..=map.world_size.y {
@@ -104,6 +106,8 @@ impl FromWorld for ChunkGenerator {
         #[cfg(feature = "profile")]
         let (send, rec) = std::sync::mpsc::channel();
 
+        let max = world.resource::<RenderDistance>().pow(2) * 2;
+
         Self {
             root,
             main_mesh: asset_server.add(make_baked_mesh()),
@@ -113,7 +117,7 @@ impl FromWorld for ChunkGenerator {
             que: IndexSet::default(),
             dirty: false,
             dummy_image: asset_server.add(ChunkData::dummy_image()),
-            max_chunk_tasks: 250,
+            max_chunk_tasks: max as usize,
             #[cfg(not(feature = "profile"))]
             map: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
             #[cfg(feature = "profile")]
@@ -152,24 +156,27 @@ impl ChunkGenerator {
         &mut self,
         commands: &mut Commands,
         asset_server: Res<AssetServer>,
-        player_pos: Vec3,
+        center: ChunkId,
         lookup: &ChunkLookup,
+        max_distance: u32,
     ) {
-        if self.que.is_empty() {
+        if !self.should_generate(center, max_distance) {
             return;
         }
         let pool = bevy::tasks::AsyncComputeTaskPool::get();
-        self.sort_que(player_pos);
         let que = self
             .que
             .iter()
             .rev()
-            .take(pool.thread_num() * 4)
+            .take(self.max_chunk_tasks - self.tasks.len() + pool.thread_num())
             .cloned()
             .collect::<Vec<_>>();
-        let colors = asset_server.load("RtoG.png");
+        let colors = asset_server.load("colors.png");
         println!("Generating {} chunks", que.len());
         for chunk in que {
+            if chunk.chebyshev_distance(*center) > max_distance {
+                break;
+            }
             self.que.swap_remove(&chunk);
             let descriptor = self.map.clone();
             let ass = asset_server.clone();
@@ -210,20 +217,33 @@ impl ChunkGenerator {
         }
     }
 
+    fn should_generate(&mut self, center: ChunkId, max_distance: u32) -> bool {
+        self.sort_que(center);
+        if let Some(last) = self.que.last() {
+            let dis = last.chebyshev_distance(*center);
+            dis <= max_distance
+        } else {
+            false
+        }
+    }
+
     fn que(&mut self, pos: IVec3) {
         if self.que.insert(pos) {
             self.dirty = true;
         }
     }
 
-    fn sort_que(&mut self, player_pos: Vec3) {
+    pub fn set_dirty(&mut self) {
+        self.dirty = true;
+    }
+
+    fn sort_que(&mut self, center: ChunkId) {
         if !self.dirty {
             return;
         }
-        let center = (player_pos / CHUNK_SIZE as f32).as_ivec3();
         self.que.sort_by(|a, b| {
-            b.manhattan_distance(center)
-                .cmp(&a.manhattan_distance(center))
+            b.manhattan_distance(*center)
+                .cmp(&a.manhattan_distance(*center))
         });
         self.dirty = false;
     }
@@ -259,9 +279,10 @@ fn update_mesh_generator(
     asset_server: Res<AssetServer>,
     chunks: Query<&MeshMaterial3d<CustomMaterial>>,
     mut mashes: ResMut<Assets<CustomMaterial>>,
-    player: Single<&Transform, With<crate::player::PlayerEntity>>,
     mut done: Local<bool>,
     lookup: Res<ChunkLookup>,
+    max_distance: Res<GenerationDistance>,
+    offset: Res<ChunkId>,
 ) {
     let mut tasks = std::mem::take(&mut mesh_generator.tasks);
     for (id, task) in tasks.drain() {
@@ -337,10 +358,18 @@ fn update_mesh_generator(
     if !mesh_generator.que.is_empty() {
         *done = false;
     }
+    // don't generate more chunks if we already have too many in the queue or being generated
+    // this makes sure we don't cue chunks far from the player then have them generate before near chunks
     if mesh_generator.tasks.len() > mesh_generator.max_chunk_tasks {
         return;
     }
-    mesh_generator.generate(&mut commands, asset_server, player.translation, &lookup);
+    mesh_generator.generate(
+        &mut commands,
+        asset_server,
+        *offset,
+        &lookup,
+        max_distance.0,
+    );
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -554,4 +583,28 @@ pub enum MapError {
     NoChunk,
     NoChunkData,
     NoBlock,
+}
+
+/// The distance the world should be generated out too.<br>
+/// This is used to chunks can be generated before they are visible, so the player doesn't see chunks pop in when they move around.
+#[derive(Debug, Resource)]
+pub struct GenerationDistance(u32);
+
+impl FromWorld for GenerationDistance {
+    fn from_world(world: &mut World) -> Self {
+        let view = world.resource::<RenderDistance>();
+        Self(**view + 3)
+    }
+}
+
+impl PartialEq<GenerationDistance> for u32 {
+    fn eq(&self, other: &GenerationDistance) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialOrd<GenerationDistance> for u32 {
+    fn partial_cmp(&self, other: &GenerationDistance) -> Option<std::cmp::Ordering> {
+        self.partial_cmp(&other.0)
+    }
 }

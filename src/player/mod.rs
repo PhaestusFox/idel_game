@@ -43,6 +43,11 @@ impl Plugin for PlayerPlugin {
         app.add_observer(move_the_universe_not_the_ship)
             .add_systems(First, detect_chunk_transition)
             .init_resource::<ChunkId>();
+        app.add_systems(
+            Update,
+            update_visible_chunks.run_if(resource_changed::<ChunkId>),
+        );
+        app.init_resource::<RenderDistance>();
     }
 }
 
@@ -133,7 +138,9 @@ fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
 pub fn detect_chunk_transition(
     player: Single<&Transform, With<PlayerEntity>>,
     mut commands: Commands,
+    mut generator: ResMut<ChunkGenerator>,
 ) {
+    generator.set_dirty();
     let pos = ChunkId::from_translation(player.translation);
     if pos.abs().max_element() > 1 {
         commands.trigger(MoveWorld(pos.clamp(IVec3::NEG_ONE, IVec3::ONE)));
@@ -213,3 +220,40 @@ fn player_look(
 
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Debug)]
 struct PlayerMovement;
+
+/// The distance at which chunks will be set visible.
+#[derive(Debug, Resource, Deref, DerefMut, PartialEq, Eq)]
+pub struct RenderDistance(u32);
+
+impl Default for RenderDistance {
+    fn default() -> Self {
+        Self(10)
+    }
+}
+
+impl PartialEq<u32> for RenderDistance {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::cmp::PartialOrd<u32> for RenderDistance {
+    fn partial_cmp(&self, other: &u32) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
+fn update_visible_chunks(
+    offset: Res<ChunkId>,
+    view_distance: Res<RenderDistance>,
+    chunks: Query<(&ChunkId, &mut Visibility)>,
+) {
+    for (chunk_id, mut visibility) in chunks {
+        let distance = chunk_id.chebyshev_distance(**offset);
+        if *view_distance < distance {
+            *visibility = Visibility::Hidden;
+        } else {
+            *visibility = Visibility::Visible;
+        }
+    }
+}

@@ -32,8 +32,12 @@ impl BiomeDescriptor for Mountain {
         "Mountain"
     }
     fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
-        let g = noise.get::<GroundHeight>(point) as f32;
-        if g < 0.5 { None } else { Some(g * 2.) }
+        let g = noise.get::<GroundHeight>(point);
+        if g < 0.0 {
+            None
+        } else {
+            Some((g * 5.).clamp(0., 1.0))
+        }
     }
     fn generate_column(
         &self,
@@ -46,7 +50,6 @@ impl BiomeDescriptor for Mountain {
         if origin.y > ground {
             return data;
         }
-        let t = noise.get::<Fertility>(IVec2::new(origin.x, origin.z)) as f32;
         // if the top block is in the chunk, set it to the correct block type
         if origin.y > ground - CHUNK_SIZE as i32 {
             let block = if ground > self.snow_line {
@@ -56,6 +59,7 @@ impl BiomeDescriptor for Mountain {
             };
             data[r_ground as usize] = Block::Snow;
         }
+        let t = noise.get::<Fertility>(IVec2::new(origin.x, origin.z));
         let t = (t * 0.5 + 0.5).clamp(0., 1.);
         let soild_depth = self.soil_curve.sample_unchecked(t) as i32;
         for y in 0..r_ground as usize {
@@ -72,7 +76,9 @@ impl BiomeDescriptor for Mountain {
         data
     }
     fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32 {
-        let ground_l = (descriptor.get::<GroundHeight>(point)) as f32;
-        self.ground_curve.sample_unchecked(ground_l)
+        let ground_l = descriptor.get::<GroundHeight>(point) * 0.5 + 0.5;
+        let g = self.ground_curve.sample_unchecked(ground_l);
+        // println!("Ground height: {}", g);
+        g
     }
 }

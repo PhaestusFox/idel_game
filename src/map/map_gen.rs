@@ -24,11 +24,11 @@ impl MapDescriptor {
     ) -> Self {
         let biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>> = RwLock::new(vec![
             // Box::new(Badland::new()),
-            // Box::new(Mountain::new()),
-            // Box::new(Plains::new(0.)),
-            // Box::new(Desert::new(0.)),
+            Box::new(Mountain::new()),
+            Box::new(Plains::new(0.2)),
+            Box::new(Desert::new(-0.2)),
             // Box::new(Ocean::new()),
-            Box::new(DebugBiome::new(DebugBiomeType::Height, 3)),
+            // Box::new(DebugBiome::new(DebugBiomeType::Height, 3)),
             // Box::new(Plains::new(-0.2)),
             // Box::new(Plains::new(0.2)),
             // Box::new(Desert::new(0.2)),
