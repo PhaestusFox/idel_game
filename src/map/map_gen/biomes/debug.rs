@@ -18,14 +18,19 @@ pub enum DebugBiomeType {
     Rainfall,
     Fertility,
     GroundHeight2,
+    GroundHeight3,
+    RainShadow,
 }
 
 impl BiomeDescriptor for DebugBiome {
     fn name(&self) -> &str {
         "Debug"
     }
-    fn strength(&self, _: IVec2, _: &MapDescriptor) -> Option<f32> {
-        Some(1.)
+    fn strength(&self, _: IVec2, _: &MapDescriptor) -> f32 {
+        1.
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        u8::MAX
     }
     fn generate_column(
         &self,
@@ -47,6 +52,12 @@ impl BiomeDescriptor for DebugBiome {
             }
             DebugBiomeType::GroundHeight2 => {
                 (noise.get::<GroundHeight2>(IVec2::new(p.x, p.z)) * 0.5 + 0.5) * CHUNK_SIZE as f32
+            }
+            DebugBiomeType::GroundHeight3 => {
+                (noise.get::<GroundHeight3>(IVec2::new(p.x, p.z)) * 0.5 + 0.5) * CHUNK_SIZE as f32
+            }
+            DebugBiomeType::RainShadow => {
+                noise.get::<RainShadow>(IVec2::new(p.x, p.z)) * CHUNK_SIZE as f32
             }
         };
         for y in 0..CHUNK_SIZE as usize {

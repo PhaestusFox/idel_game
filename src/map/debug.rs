@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::map::{
-    ChunkGenerator, ChunkId,
+    ChunkGenerator, ChunkId, MAP_DEPTH,
     map_gen::biomes::{DebugBiome, DebugBiomeType},
 };
 
@@ -44,8 +44,8 @@ fn open_console(mut commands: Commands) {
     commands.spawn((
         MapDebugConsole,
         Node {
-            width: Val::Px(300.),
-            height: Val::Px(200.),
+            width: Val::Px(400.),
+            height: Val::Px(500.),
             right: Val::Px(0.),
             position_type: PositionType::Absolute,
             flex_direction: FlexDirection::Column,
@@ -82,7 +82,7 @@ fn open_console(mut commands: Commands) {
                     ),
                     slider(
                         SliderProps {
-                            value: super::MAP_DEPTH as f32,
+                            value: super::MAP_HIGHT as f32,
                             min: 0.,
                             max: 5.
                         },
@@ -174,7 +174,10 @@ fn open_console(mut commands: Commands) {
                 ],
             ),
             (
-                Node::DEFAULT,
+                Node {
+                    flex_wrap: FlexWrap::Wrap,
+                    ..Default::default()
+                },
                 children![
                     button(
                         ButtonProps::default(),
@@ -198,6 +201,19 @@ fn open_console(mut commands: Commands) {
                             observe(set_debug_biome)
                         ),
                         Spawn((Text::new("GroundHeight2"), ThemedText))
+                    ),
+                    button(
+                        ButtonProps::default(),
+                        (
+                            super::DebugBiomeType::GroundHeight3,
+                            observe(set_debug_biome)
+                        ),
+                        Spawn((Text::new("GroundHeight3"), ThemedText))
+                    ),
+                    button(
+                        ButtonProps::default(),
+                        (super::DebugBiomeType::RainShadow, observe(set_debug_biome)),
+                        Spawn((Text::new("RainShadow"), ThemedText))
                     )
                 ]
             ),
@@ -231,11 +247,11 @@ fn regenerate_chunks(
         .map(|(k, v)| (*k, v))
         .collect::<bevy::platform::collections::HashMap<_, _>>();
     for x in -map.world_size.x..=map.world_size.x {
-        for y in -map.world_size.y..=map.world_size.y {
+        for y in MAP_DEPTH..map.world_size.y + MAP_DEPTH {
             for z in -map.world_size.z..=map.world_size.z {
                 let chunk_id = ChunkId::new(x, y, z);
                 kill.remove(&chunk_id);
-                chunk_think.que(*chunk_id);
+                chunk_think.que(chunk_id);
             }
         }
     }

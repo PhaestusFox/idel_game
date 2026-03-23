@@ -32,6 +32,7 @@ impl ChunkId {
     pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
         let id = *world.get::<ChunkId>(ctx.entity).unwrap();
         world.resource_mut::<ChunkLookup>().remove(&id);
+        world.resource_mut::<ChunkGenerator>().cancel_generation(id);
     }
 }
 

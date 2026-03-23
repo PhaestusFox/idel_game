@@ -13,7 +13,7 @@ impl Desert {
             ground_curve: bevy::math::curve::EasingCurve::new(
                 -16.,
                 32.,
-                bevy::math::curve::easing::EaseFunction::ExponentialInOut,
+                bevy::math::curve::easing::EaseFunction::Linear,
             ),
             soil_curve: bevy::math::curve::EasingCurve::new(
                 0.,
@@ -29,12 +29,17 @@ impl BiomeDescriptor for Desert {
     fn name(&self) -> &str {
         "Desert"
     }
-    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
-        let rainfall = noise.get::<RainFall>(point);
-        if rainfall > self.max_rainfall {
-            None
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
+        let rainfall = noise.get::<Fertility>(point);
+        rainfall
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        let rainfall = descriptor.get::<Fertility>(point);
+        let r = descriptor.get::<RainFall>(point);
+        if r > self.max_rainfall {
+            0
         } else {
-            Some(rainfall.abs())
+            64 - (rainfall * 64.) as u8
         }
     }
     fn generate_column(
@@ -48,15 +53,11 @@ impl BiomeDescriptor for Desert {
         if origin.y > ground_level {
             return data;
         }
-        // if the top block is in the chunk, set it to the correct block type
-        if origin.y > ground_level - CHUNK_SIZE as i32 {
-            data[r_ground as usize] = Block::Sand;
-        }
-        let ground_l = noise.get::<GroundHeight>(IVec2::new(origin.x, origin.z));
-        let soild_depth = self.soil_curve.sample_unchecked(ground_l) as i32;
+        let sand_s = noise.get::<GroundHeight2>(IVec2::new(origin.x, origin.z));
+        let sand_depth = self.soil_curve.sample_unchecked(sand_s) as i32;
         for (y, p) in data.iter_mut().enumerate().take(r_ground as usize) {
             let true_y = origin.y + y as i32;
-            let block = if true_y > ground_level - soild_depth {
+            let block = if true_y >= ground_level - sand_depth {
                 Block::Sand
             } else {
                 Block::Stone

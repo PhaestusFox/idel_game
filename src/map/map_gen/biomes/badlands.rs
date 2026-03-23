@@ -21,8 +21,11 @@ impl BiomeDescriptor for Badland {
     fn name(&self) -> &str {
         "Badland"
     }
-    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
-        None
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
+        0.0
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        0
     }
     fn generate_column(
         &self,

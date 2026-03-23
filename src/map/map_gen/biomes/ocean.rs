@@ -18,9 +18,13 @@ impl Ocean {
 }
 
 impl BiomeDescriptor for Ocean {
-    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> Option<f32> {
-        let g = descriptor.get::<GroundHeight>(point) as f32;
-        if g < 0. { Some(-g * 5.) } else { None }
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
+        let g = noise.get::<GroundHeight>(point);
+        -g * 2.
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        let g = descriptor.get::<GroundHeight>(point);
+        if g < -0.3 { (-g * 128.) as u8 } else { 0 }
     }
     fn generate_column(
         &self,

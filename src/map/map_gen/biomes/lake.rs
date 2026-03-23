@@ -18,12 +18,15 @@ impl Lake {
 }
 
 impl BiomeDescriptor for Lake {
-    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
-        let rainfall = noise.get::<RainFall>(point) as f32;
-        if rainfall > 0.3 {
-            Some((1. - (rainfall - 0.3) * 3.).abs())
+    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
+        0.
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        let rainfall = descriptor.get::<RainFall>(point);
+        if rainfall < 0.3 {
+            0
         } else {
-            None
+            (rainfall * 64.) as u8
         }
     }
     fn generate_column(

@@ -45,6 +45,7 @@ fn main() {
     app.init_state::<GameState>();
     app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
     app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
+    app.add_systems(Update, quit);
     app.run();
 }
 
@@ -59,4 +60,10 @@ pub enum GameState {
     #[default]
     InMenu,
     Playing,
+}
+
+fn quit(keyboard_input: Res<ButtonInput<KeyCode>>, mut app_exit_events: MessageWriter<AppExit>) {
+    if keyboard_input.just_pressed(KeyCode::F9) {
+        app_exit_events.write(AppExit::Success);
+    }
 }

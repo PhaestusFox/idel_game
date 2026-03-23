@@ -1,10 +1,12 @@
 use core::f32;
-use std::borrow::Cow;
+use std::{borrow::Cow, num::NonZero};
 
 use super::*;
 use noise::{MultiFractal, NoiseFn};
 pub struct MapDescriptor {
-    noise: noise::Fbm<noise::OpenSimplex>,
+    h_noise: noise::Fbm<noise::OpenSimplex>,
+    m_noise: noise::Fbm<noise::OpenSimplex>,
+    l_noise: noise::Fbm<noise::OpenSimplex>,
     biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>>,
     #[cfg(feature = "profile")]
     timings: std::sync::mpsc::Sender<std::time::Duration>,
@@ -24,18 +26,33 @@ impl MapDescriptor {
     ) -> Self {
         let biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>> = RwLock::new(vec![
             // Box::new(Badland::new()),
+            Box::new(Hills::new()),
             Box::new(Mountain::new()),
-            Box::new(Plains::new(0.2)),
-            Box::new(Desert::new(-0.2)),
+            // Box::new(Plains::new(0.2)),
+            // Box::new(Desert::new(0.2)),
             // Box::new(Ocean::new()),
-            // Box::new(DebugBiome::new(DebugBiomeType::Height, 3)),
+            // Box::new(DebugBiome::new(DebugBiomeType::Height, 1)),
             // Box::new(Plains::new(-0.2)),
             // Box::new(Plains::new(0.2)),
             // Box::new(Desert::new(0.2)),
             // Box::new(Desert::new(-0.2)),
         ]);
+        let mut h_noise = noise::Fbm::new(seed);
+        let mut m_noise = noise::Fbm::new(seed + 0x5068);
+        let mut l_noise = noise::Fbm::new(seed + 0x6f78);
+        h_noise.lacunarity = 3f64.sqrt();
+        m_noise.lacunarity = 5f64.sqrt();
+        l_noise.lacunarity = 11f64.sqrt();
+        h_noise.persistence = 0.85;
+        m_noise.persistence = 0.5;
+        l_noise.persistence = 0.2;
+        let h_noise = h_noise.set_octaves(8);
+        let m_noise = m_noise.set_octaves(6);
+        let l_noise = l_noise.set_octaves(4);
         Self {
-            noise: noise::Fbm::new(seed),
+            h_noise,
+            m_noise,
+            l_noise,
             biomes,
             #[cfg(feature = "profile")]
             timings,
@@ -43,18 +60,18 @@ impl MapDescriptor {
     }
 
     pub fn set_octaves(&mut self, octaves: usize) {
-        let n = std::mem::take(&mut self.noise);
-        self.noise = n.set_octaves(octaves);
+        let n = std::mem::take(&mut self.h_noise);
+        self.h_noise = n.set_octaves(octaves);
     }
     pub fn set_frequency(&mut self, frequency: f64) {
-        self.noise.frequency = frequency;
+        self.h_noise.frequency = frequency;
     }
     pub fn set_lacunarity(&mut self, lacunarity: f64) {
-        self.noise.lacunarity = lacunarity;
+        self.h_noise.lacunarity = lacunarity;
     }
     pub fn set_persistence(&mut self, persistence: f64) {
-        let n = std::mem::take(&mut self.noise);
-        self.noise = n.set_persistence(persistence);
+        let n = std::mem::take(&mut self.h_noise);
+        self.h_noise = n.set_persistence(persistence);
     }
 
     pub fn biomes_mut(&mut self) -> &mut Vec<Box<dyn BiomeDescriptor>> {
@@ -143,28 +160,33 @@ impl MapDescriptor {
     fn calculate_biome(&self, x: i32, z: i32) -> (usize, i32) {
         let point = IVec2::new(x, z);
         let biomes = self.biomes.read().unwrap();
-        let mut top3 = [(0, 0.); 3];
+        let mut top3 = [(0, 0); 3];
         for (index, biome) in biomes.iter().enumerate() {
-            if let Some(strength) = biome.strength(point, self) {
-                if strength > top3[0].1 {
+            let p = biome.priority(point, self);
+            if p != 0 {
+                if p > top3[0].1 {
                     top3[2] = top3[1];
                     top3[1] = top3[0];
-                    top3[0] = (index, strength);
-                } else if strength > top3[1].1 {
+                    top3[0] = (index, p);
+                } else if p > top3[1].1 {
                     top3[2] = top3[1];
-                    top3[1] = (index, strength);
-                } else if strength > top3[2].1 {
-                    top3[2] = (index, strength);
+                    top3[1] = (index, p);
+                } else if p > top3[2].1 {
+                    top3[2] = (index, p);
                 }
             }
         }
-        let mut ground_level = 0.;
-        let tw = top3[0].1 + top3[1].1 + top3[2].1;
-        for (biome, weight) in top3 {
+        let mut out = [(0., 0.); 3];
+        let mut total_strength = 0.;
+        for ((biome, w), (p, h)) in top3.into_iter().zip(out.iter_mut()) {
             let b = &biomes[biome];
-            let w = weight / tw;
-            ground_level += w * b.ground_height(point, self);
+            *p = b.strength(IVec2::new(x, z), self);
+            *h = b.ground_height(IVec2::new(x, z), self);
+            total_strength += *p;
         }
+        let ground_level = out
+            .iter()
+            .fold(0., |acc, (p, h)| acc + (p / total_strength) * h);
         (top3[0].0, ground_level as i32)
     }
 
@@ -173,13 +195,27 @@ impl MapDescriptor {
         T::from_map(self, point)
     }
     #[inline(always)]
-    fn sample_noise_2d(&self, x: f32, y: f32) -> f64 {
-        self.noise.get([x as f64, y as f64])
+    fn sample_noise_2d(&self, x: f32, y: f32, level: Quality) -> f64 {
+        match level {
+            Quality::Low => self.l_noise.get([x as f64, y as f64]),
+            Quality::Medium => self.m_noise.get([x as f64, y as f64]),
+            Quality::High => self.h_noise.get([x as f64, y as f64]),
+        }
     }
     #[inline(always)]
-    fn sample_noise_3d(&self, x: f32, y: f32, z: f32) -> f64 {
-        self.noise.get([x as f64, y as f64, z as f64])
+    fn sample_noise_3d(&self, x: f32, y: f32, z: f32, level: Quality) -> f64 {
+        match level {
+            Quality::Low => self.l_noise.get([x as f64, y as f64, z as f64]),
+            Quality::Medium => self.m_noise.get([x as f64, y as f64, z as f64]),
+            Quality::High => self.h_noise.get([x as f64, y as f64, z as f64]),
+        }
     }
+}
+
+pub enum Quality {
+    Low,
+    Medium,
+    High,
 }
 
 trait FromMap: Sized {

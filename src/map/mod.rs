@@ -7,6 +7,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::ecs::world::DeferredWorld;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::Task};
 
+const CHUNK_COLOR_PATH: &str = "colors.png";
+
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -25,6 +27,12 @@ impl Plugin for MapPlugin {
 
         #[cfg(debug_assertions)]
         app.add_plugins(debug::MapDebugConsolePlugin);
+
+        app.add_systems(
+            Update,
+            (remove_far_chunks, check_need_generate).run_if(resource_changed::<ChunkId>),
+        );
+        app.init_resource::<PersistenceDistance>();
     }
 }
 pub mod debug;
@@ -39,14 +47,15 @@ mod ambiance;
 use crate::player::RenderDistance;
 use crate::rendering::CustomMaterial;
 
-const MAP_SIZE_Z: i32 = 2;
-const MAP_SIZE_X: i32 = 160;
-const MAP_DEPTH: i32 = 3;
+const MAP_SIZE_Z: i32 = 22;
+const MAP_SIZE_X: i32 = 22;
+const MAP_HIGHT: i32 = 6;
+const MAP_DEPTH: i32 = -1;
 fn spawn_test_chunk(mut chunk_manager: ResMut<ChunkGenerator>, map: Res<MapDescriptor>) {
     for x in -map.world_size.x..map.world_size.x {
-        for y in -map.world_size.y..=map.world_size.y {
+        for y in MAP_DEPTH..map.world_size.y + MAP_DEPTH {
             for z in -map.world_size.z..map.world_size.z {
-                chunk_manager.que(IVec3::new(x, y, z));
+                chunk_manager.que(ChunkId::new(x, y, z));
             }
         }
     }
@@ -62,7 +71,7 @@ impl Default for MapDescriptor {
     fn default() -> Self {
         Self {
             seed: 0,
-            world_size: IVec3::new(MAP_SIZE_X, MAP_DEPTH, MAP_SIZE_Z),
+            world_size: IVec3::new(MAP_SIZE_X, MAP_HIGHT, MAP_SIZE_Z),
         }
     }
 }
@@ -77,7 +86,7 @@ pub struct ChunkGenerator {
     root: Entity,
     dirty: bool,
     max_chunk_tasks: usize,
-    que: IndexSet<IVec3>,
+    que: IndexSet<ChunkId>,
     map: Arc<RwLock<map_gen::MapDescriptor>>,
     #[cfg(feature = "profile")]
     timings: (
@@ -106,7 +115,7 @@ impl FromWorld for ChunkGenerator {
         #[cfg(feature = "profile")]
         let (send, rec) = std::sync::mpsc::channel();
 
-        let max = world.resource::<RenderDistance>().pow(2) * 2;
+        let max = **world.resource::<RenderDistance>() * MAP_HIGHT as u32 * CHUNK_BLOCK_SIZE as u32;
 
         Self {
             root,
@@ -171,8 +180,7 @@ impl ChunkGenerator {
             .take(self.max_chunk_tasks - self.tasks.len() + pool.thread_num())
             .cloned()
             .collect::<Vec<_>>();
-        let colors = asset_server.load("colors.png");
-        println!("Generating {} chunks", que.len());
+        let colors = asset_server.load(CHUNK_COLOR_PATH);
         for chunk in que {
             if chunk.chebyshev_distance(*center) > max_distance {
                 break;
@@ -197,8 +205,7 @@ impl ChunkGenerator {
                 LoD::LOD16
             };
             let mesh = self.get_mesh(LoD::LOD1);
-            let id = ChunkId::from_ivec3(chunk);
-            if lookup.get(&id).is_none() {
+            if lookup.get(&chunk).is_none() {
                 commands.spawn((
                     Name::new(format!("Chunk ({})", chunk)),
                     Mesh3d(mesh),
@@ -210,10 +217,10 @@ impl ChunkGenerator {
                     })),
                     Transform::from_scale(Vec3::splat(CHUNK_SIZE as f32 * 0.5)),
                     ChildOf(self.root),
-                    id,
+                    chunk,
                 ));
             }
-            self.tasks.insert(id, task);
+            self.tasks.insert(chunk, task);
         }
     }
 
@@ -227,7 +234,10 @@ impl ChunkGenerator {
         }
     }
 
-    fn que(&mut self, pos: IVec3) {
+    fn que(&mut self, pos: ChunkId) {
+        if self.tasks.contains_key(&pos) {
+            return;
+        }
         if self.que.insert(pos) {
             self.dirty = true;
         }
@@ -242,8 +252,8 @@ impl ChunkGenerator {
             return;
         }
         self.que.sort_by(|a, b| {
-            b.manhattan_distance(*center)
-                .cmp(&a.manhattan_distance(*center))
+            b.chebyshev_distance(*center)
+                .cmp(&a.chebyshev_distance(*center))
         });
         self.dirty = false;
     }
@@ -270,6 +280,11 @@ impl ChunkGenerator {
     #[inline(always)]
     pub fn set_persistence(&mut self, persistence: f64) {
         self.map.write().unwrap().set_persistence(persistence);
+    }
+
+    pub fn cancel_generation(&mut self, id: ChunkId) {
+        self.que.swap_remove(&id);
+        self.tasks.remove(&id);
     }
 }
 
@@ -391,7 +406,7 @@ fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>
         if chunk.lod_hint == LoD::Empty {
             *visibility = Visibility::Hidden;
         } else {
-            *visibility = Visibility::Visible;
+            *visibility = Visibility::Inherited;
         }
     }
 }
@@ -470,6 +485,10 @@ impl FromWorld for ChunkLookup {
     }
 }
 impl ChunkLookup {
+    pub fn contains(&self, pos: &ChunkId) -> bool {
+        self.chunks.contains_key(pos)
+    }
+
     pub fn insert(&mut self, pos: ChunkId, entity: Entity) {
         self.chunks.insert(pos, entity);
     }
@@ -499,12 +518,17 @@ impl ChunkLookup {
 
 #[derive(Component, PartialEq, Eq, Clone, Copy, Debug, Hash, Deref)]
 #[component(immutable, on_insert = ChunkBlock::on_insert, on_remove = ChunkBlock::on_remove)]
-#[require(Name = Name::new("ChunkBlock"), Transform, Visibility)]
+#[require(Name = Name::new("ChunkBlock"), Transform, Visibility = Visibility::Hidden)]
 pub struct ChunkBlock(pub IVec3);
 
-const CHUNK_BLOCK_SIZE: i32 = 3;
+const CHUNK_BLOCK_SIZE: i32 = 2;
 
 impl ChunkBlock {
+    pub fn chebyshev_distance(&self, other: ChunkId) -> u32 {
+        let a = self.0 * CHUNK_BLOCK_SIZE;
+        a.chebyshev_distance(*other)
+    }
+
     pub fn world_pos(&self) -> Vec3 {
         let offset = self.0 * CHUNK_BLOCK_SIZE * CHUNK_SIZE as i32;
         (offset).as_vec3()
@@ -528,6 +552,14 @@ impl ChunkBlock {
             .get_mut::<Transform>(ctx.entity)
             .expect("Transform is required")
             .translation = id.world_pos() - offset.offset();
+        let offset = world.resource::<ChunkId>();
+        let distance = id.chebyshev_distance(*offset);
+        let view = world.resource::<RenderDistance>();
+        if *view > distance {
+            *world
+                .get_mut::<Visibility>(ctx.entity)
+                .expect("Visibility is required") = Visibility::Visible;
+        }
     }
     pub fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
         let id = *world
@@ -593,7 +625,7 @@ pub struct GenerationDistance(u32);
 impl FromWorld for GenerationDistance {
     fn from_world(world: &mut World) -> Self {
         let view = world.resource::<RenderDistance>();
-        Self(**view + 3)
+        Self(**view + CHUNK_BLOCK_SIZE as u32)
     }
 }
 
@@ -606,5 +638,64 @@ impl PartialEq<GenerationDistance> for u32 {
 impl PartialOrd<GenerationDistance> for u32 {
     fn partial_cmp(&self, other: &GenerationDistance) -> Option<std::cmp::Ordering> {
         self.partial_cmp(&other.0)
+    }
+}
+
+fn check_need_generate(
+    offset: Res<ChunkId>,
+    mut generator: ResMut<ChunkGenerator>,
+    lookup: Res<ChunkLookup>,
+    max_distance: Res<GenerationDistance>,
+    map: Res<MapDescriptor>,
+) {
+    let n = -IVec3::splat(max_distance.0 as i32) + **offset;
+    let p = IVec3::splat(max_distance.0 as i32) + **offset;
+
+    for x in n.x..=p.x {
+        for z in n.z..=p.z {
+            for y in MAP_DEPTH..map.world_size.y + MAP_DEPTH {
+                let id = ChunkId::new(x, y, z);
+                if lookup.contains(&id) {
+                    continue;
+                }
+                generator.que(id);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Resource)]
+pub struct PersistenceDistance(u32);
+
+impl FromWorld for PersistenceDistance {
+    fn from_world(world: &mut World) -> Self {
+        let view = world.resource::<GenerationDistance>();
+        Self(view.0 + CHUNK_BLOCK_SIZE as u32)
+    }
+}
+
+impl PartialEq<PersistenceDistance> for u32 {
+    fn eq(&self, other: &PersistenceDistance) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialOrd<PersistenceDistance> for u32 {
+    fn partial_cmp(&self, other: &PersistenceDistance) -> Option<std::cmp::Ordering> {
+        self.partial_cmp(&other.0)
+    }
+}
+
+fn remove_far_chunks(
+    offset: Res<ChunkId>,
+    persistence_distance: Res<PersistenceDistance>,
+    chunks: Query<(Entity, &ChunkId)>,
+    mut commands: Commands,
+) {
+    for (entity, chunk_id) in &chunks {
+        let distance = chunk_id.chebyshev_distance(**offset);
+        if distance > persistence_distance.0 {
+            commands.entity(entity).despawn();
+        }
     }
 }

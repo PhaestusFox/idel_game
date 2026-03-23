@@ -10,7 +10,9 @@ use bevy::{
 
 use crate::{
     GameState,
-    map::{CHUNK_SIZE, Chunk, ChunkBlock, ChunkData, ChunkGenerator, ChunkId, ChunkLookup, LoD},
+    map::{
+        Block, CHUNK_SIZE, Chunk, ChunkBlock, ChunkData, ChunkGenerator, ChunkId, ChunkLookup, LoD,
+    },
     physics::Weightless,
     rendering::CustomMaterial,
 };
@@ -52,7 +54,6 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component)]
-#[require(ChunkId)]
 pub struct PlayerEntity;
 
 fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -227,7 +228,7 @@ pub struct RenderDistance(u32);
 
 impl Default for RenderDistance {
     fn default() -> Self {
-        Self(10)
+        Self(20)
     }
 }
 
@@ -246,10 +247,10 @@ impl std::cmp::PartialOrd<u32> for RenderDistance {
 fn update_visible_chunks(
     offset: Res<ChunkId>,
     view_distance: Res<RenderDistance>,
-    chunks: Query<(&ChunkId, &mut Visibility)>,
+    chunks: Query<(&ChunkBlock, &mut Visibility)>,
 ) {
     for (chunk_id, mut visibility) in chunks {
-        let distance = chunk_id.chebyshev_distance(**offset);
+        let distance = chunk_id.chebyshev_distance(*offset);
         if *view_distance < distance {
             *visibility = Visibility::Hidden;
         } else {

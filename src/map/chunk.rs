@@ -114,8 +114,12 @@ impl ChunkData {
     }
 
     #[inline(always)]
-    pub fn generate(pos: IVec3, map_descriptor: &MapDescriptor, asset_server: AssetServer) -> Self {
-        let mut data = map_descriptor.generate_chunk(ChunkId::from_ivec3(pos));
+    pub fn generate(
+        pos: ChunkId,
+        map_descriptor: &MapDescriptor,
+        asset_server: AssetServer,
+    ) -> Self {
+        let mut data = map_descriptor.generate_chunk(pos);
         let image = asset_server.add(data.to_image());
         data.images = Some(image);
         data

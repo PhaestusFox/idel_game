@@ -35,13 +35,18 @@ impl BiomeDescriptor for Plains {
     fn name(&self) -> &str {
         "Plains"
     }
-    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> Option<f32> {
-        let rainfall = descriptor.get::<RainFall>(point) as f32;
-        if rainfall > self.min_rainfall {
-            return Some(1.);
+    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> f32 {
+        let rainfall = descriptor.get::<RainShadow>(point);
+        let t = 1. - (rainfall - self.min_rainfall).abs();
+        self.strength_curve.sample_unchecked(t.clamp(0., 1.))
+    }
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
+        let rainfall = descriptor.get::<RainFall>(point);
+        if rainfall < self.min_rainfall {
+            0
+        } else {
+            (rainfall * 64.) as u8
         }
-        let t = (1. - (rainfall - self.min_rainfall).abs()).clamp(0., 1.);
-        Some(self.strength_curve.sample_unchecked(t))
     }
     fn generate_column(
         &self,
@@ -54,7 +59,7 @@ impl BiomeDescriptor for Plains {
         if origin.y > ground_level {
             return data;
         }
-        let fertility = descriptor.get::<Fertility>(IVec2::new(origin.x, origin.z)) as f32;
+        let fertility = descriptor.get::<Fertility>(IVec2::new(origin.x, origin.z));
         // if the top block is in the chunk, set it to the correct block type
         if origin.y > ground_level - CHUNK_SIZE as i32 && fertility > 0.3 {
             data[r_ground as usize] = Block::Grass;
@@ -72,7 +77,7 @@ impl BiomeDescriptor for Plains {
         data
     }
     fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32 {
-        let ground_l = (descriptor.get::<GroundHeight>(point)) as f32;
+        let ground_l = descriptor.get::<GroundHeight>(point);
         self.ground_curve.sample_unchecked(ground_l)
     }
 }

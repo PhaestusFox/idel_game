@@ -1,5 +1,7 @@
 mod mountain;
-pub use mountain::Mountain;
+use std::num::NonZero;
+
+pub use mountain::{Hills, Mountain};
 mod plains;
 pub use plains::Plains;
 mod badlands;
@@ -26,7 +28,8 @@ pub trait BiomeDescriptor: 'static + Send + Sync + Reflect {
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
-    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> Option<f32>;
+    fn strength(&self, point: IVec2, descriptor: &MapDescriptor) -> f32;
+    fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8;
     fn generate_column(
         &self,
         origin: IVec3,

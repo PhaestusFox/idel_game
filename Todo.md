@@ -15,3 +15,5 @@
 - [ ] make menu into a system peramitor to make it easier to make uis
 - [ ] add reflect based ui render/edit for biomes
 - [ ] make setting persistant
+- [ ] merge make_mesh and make lod
+
