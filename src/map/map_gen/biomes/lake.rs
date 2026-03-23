@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Reflect)]
 pub struct Lake {
     depth_curve: bevy::math::curve::EasingCurve<f32>,
 }

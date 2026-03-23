@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Reflect)]
 pub struct Badland {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
 }

@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{
     feathers::{controls::*, theme::ThemedText},
     prelude::*,
@@ -7,7 +9,10 @@ use bevy::{
     },
 };
 
-use crate::map::{ChunkGenerator, ChunkId};
+use crate::map::{
+    ChunkGenerator, ChunkId,
+    map_gen::biomes::{DebugBiome, DebugBiomeType},
+};
 
 pub struct MapDebugConsolePlugin;
 
@@ -67,7 +72,13 @@ fn open_console(mut commands: Commands) {
                             min: 0.,
                             max: 20.
                         },
-                        (Set::X, SliderPrecision(0), observe(set_map_descriptor)),
+                        (
+                            Text::new("X:"),
+                            ThemedText,
+                            Set::X,
+                            SliderPrecision(0),
+                            observe(set_map_descriptor)
+                        ),
                     ),
                     slider(
                         SliderProps {
@@ -75,7 +86,13 @@ fn open_console(mut commands: Commands) {
                             min: 0.,
                             max: 5.
                         },
-                        (SliderPrecision(0), Set::Y, observe(set_map_descriptor))
+                        (
+                            SliderPrecision(0),
+                            Text::new("Y:"),
+                            ThemedText,
+                            Set::Y,
+                            observe(set_map_descriptor)
+                        )
                     ),
                     slider(
                         SliderProps {
@@ -83,9 +100,120 @@ fn open_console(mut commands: Commands) {
                             min: 0.,
                             max: 20.
                         },
-                        (SliderPrecision(0), Set::Z, observe(set_map_descriptor))
+                        (
+                            Text::new("Z:"),
+                            ThemedText,
+                            SliderPrecision(0),
+                            Set::Z,
+                            observe(set_map_descriptor)
+                        )
                     )
                 ],
+            ),
+            (
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..Default::default()
+                },
+                children![
+                    slider(
+                        SliderProps {
+                            value: 6.,
+                            min: 1.,
+                            max: 10.
+                        },
+                        (
+                            Text::new("Octaves:"),
+                            ThemedText,
+                            Set::Ocataves,
+                            SliderPrecision(0),
+                            observe(set_map_descriptor)
+                        ),
+                    ),
+                    slider(
+                        SliderProps {
+                            value: 1.,
+                            min: 0.01,
+                            max: 5.
+                        },
+                        (
+                            SliderPrecision(2),
+                            Text::new("Frequency:"),
+                            ThemedText,
+                            Set::Frequency,
+                            observe(set_map_descriptor)
+                        )
+                    ),
+                    slider(
+                        SliderProps {
+                            value: (PI * 2.) / 3., // 2.0 * PI / 3.0
+                            min: 0.5,
+                            max: 4.
+                        },
+                        (
+                            Text::new("Lacunarity:"),
+                            ThemedText,
+                            Set::Lacunarity,
+                            observe(set_map_descriptor)
+                        )
+                    ),
+                    slider(
+                        SliderProps {
+                            value: 0.5,
+                            min: -2.,
+                            max: 2.0
+                        },
+                        (
+                            Text::new("Persistence:"),
+                            ThemedText,
+                            SliderPrecision(2),
+                            Set::Persistence,
+                            observe(set_map_descriptor)
+                        )
+                    )
+                ],
+            ),
+            (
+                Node::DEFAULT,
+                children![
+                    button(
+                        ButtonProps::default(),
+                        (super::DebugBiomeType::Height, observe(set_debug_biome)),
+                        Spawn((Text::new("Height"), ThemedText))
+                    ),
+                    button(
+                        ButtonProps::default(),
+                        (super::DebugBiomeType::Rainfall, observe(set_debug_biome)),
+                        Spawn((Text::new("Rainfall"), ThemedText))
+                    ),
+                    button(
+                        ButtonProps::default(),
+                        (super::DebugBiomeType::Fertility, observe(set_debug_biome)),
+                        Spawn((Text::new("Fertility"), ThemedText))
+                    ),
+                    button(
+                        ButtonProps::default(),
+                        (
+                            super::DebugBiomeType::GroundHeight2,
+                            observe(set_debug_biome)
+                        ),
+                        Spawn((Text::new("GroundHeight2"), ThemedText))
+                    )
+                ]
+            ),
+            slider(
+                SliderProps {
+                    value: 1.,
+                    min: 1.,
+                    max: 10.,
+                },
+                (
+                    Text::new("Scale:"),
+                    ThemedText,
+                    SliderPrecision(0),
+                    Set::Scale,
+                    observe(set_debug_scale)
+                )
             )
         ],
     ));
@@ -121,11 +249,53 @@ enum Set {
     X,
     Y,
     Z,
+    Ocataves,
+    Frequency,
+    Lacunarity,
+    Persistence,
+    Scale,
 }
+/*
+
+    pub const DEFAULT_OCTAVE_COUNT: usize = 6;
+    pub const DEFAULT_FREQUENCY: f64 = 1.0;
+    pub const DEFAULT_LACUNARITY: f64 = core::f64::consts::PI * 2.0 / 3.0;
+    pub const DEFAULT_PERSISTENCE: f64 = 0.5;
+    pub const MAX_OCTAVES: usize = 32;
+
+    /// Total number of frequency octaves to generate the noise with.
+    ///
+    /// The number of octaves control the _amount of detail_ in the noise
+    /// function. Adding more octaves increases the detail, with the drawback
+    /// of increasing the calculation time.
+    pub octaves: usize,
+
+    /// The number of cycles per unit length that the noise function outputs.
+    pub frequency: f64,
+
+    /// A multiplier that determines how quickly the frequency increases for
+    /// each successive octave in the noise function.
+    ///
+    /// The frequency of each successive octave is equal to the product of the
+    /// previous octave's frequency and the lacunarity value.
+    ///
+    /// A lacunarity of 2.0 results in the frequency doubling every octave. For
+    /// almost all cases, 2.0 is a good value to use.
+    pub lacunarity: f64,
+
+    /// A multiplier that determines how quickly the amplitudes diminish for
+    /// each successive octave in the noise function.
+    ///
+    /// The amplitude of each successive octave is equal to the product of the
+    /// previous octave's amplitude and the persistence value. Increasing the
+    /// persistence produces "rougher" noise.
+    pub persistence: f64,
+*/
 
 fn set_map_descriptor(
     change: On<ValueChange<f32>>,
     mut map: ResMut<super::MapDescriptor>,
+    mut generator: ResMut<ChunkGenerator>,
     sliders: Query<&Set>,
     mut commands: Commands,
 ) {
@@ -141,5 +311,56 @@ fn set_map_descriptor(
         Set::X => map.world_size.x = change.value as i32,
         Set::Y => map.world_size.y = change.value as i32,
         Set::Z => map.world_size.z = change.value as i32,
+        Set::Ocataves => generator.set_octaves(change.value as usize),
+        Set::Frequency => generator.set_frequency(change.value as f64),
+        Set::Lacunarity => generator.set_lacunarity(change.value as f64),
+        Set::Persistence => generator.set_persistence(change.value as f64),
+        _ => {}
+    }
+}
+
+fn set_debug_biome(
+    change: On<Activate>,
+    map: ResMut<super::ChunkGenerator>,
+    button: Query<&DebugBiomeType>,
+) {
+    let Ok(param) = button.get(change.entity) else {
+        warn!("Activate event from unknown source");
+        return;
+    };
+    println!("Setting debug biome to {:?}", param);
+    let mut map = map.map.write().unwrap();
+    let biomes = map.biomes_mut();
+
+    for biome in biomes.iter_mut() {
+        if biome.name() != "Debug" {
+            continue;
+        }
+        let b = biome.as_any_mut().downcast_mut::<DebugBiome>().unwrap();
+        b.param = *param;
+    }
+}
+
+fn set_debug_scale(
+    change: On<ValueChange<f32>>,
+    map: ResMut<super::ChunkGenerator>,
+    sliders: Query<&Set>,
+    mut commands: Commands,
+) {
+    let Ok(set) = sliders.get(change.source) else {
+        warn!("Value change event from unknown source");
+        return;
+    };
+    commands
+        .entity(change.source)
+        .insert(SliderValue(change.value));
+    let mut map = map.map.write().unwrap();
+    let biomes = map.biomes_mut();
+    for biome in biomes.iter_mut() {
+        if biome.name() != "Debug" {
+            continue;
+        }
+        let b = biome.as_any_mut().downcast_mut::<DebugBiome>().unwrap();
+        b.scale = change.value as u32;
     }
 }

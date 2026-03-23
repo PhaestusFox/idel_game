@@ -1,4 +1,6 @@
 use super::*;
+
+#[derive(Reflect)]
 pub struct Ocean {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
 }

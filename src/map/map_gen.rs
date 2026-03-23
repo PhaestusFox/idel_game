@@ -2,7 +2,7 @@ use core::f32;
 use std::borrow::Cow;
 
 use super::*;
-use noise::NoiseFn;
+use noise::{MultiFractal, NoiseFn};
 pub struct MapDescriptor {
     noise: noise::Fbm<noise::OpenSimplex>,
     biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>>,
@@ -40,6 +40,25 @@ impl MapDescriptor {
             #[cfg(feature = "profile")]
             timings,
         }
+    }
+
+    pub fn set_octaves(&mut self, octaves: usize) {
+        let n = std::mem::take(&mut self.noise);
+        self.noise = n.set_octaves(octaves);
+    }
+    pub fn set_frequency(&mut self, frequency: f64) {
+        self.noise.frequency = frequency;
+    }
+    pub fn set_lacunarity(&mut self, lacunarity: f64) {
+        self.noise.lacunarity = lacunarity;
+    }
+    pub fn set_persistence(&mut self, persistence: f64) {
+        let n = std::mem::take(&mut self.noise);
+        self.noise = n.set_persistence(persistence);
+    }
+
+    pub fn biomes_mut(&mut self) -> &mut Vec<Box<dyn BiomeDescriptor>> {
+        self.biomes.get_mut().unwrap()
     }
 }
 
@@ -169,7 +188,7 @@ trait FromMap: Sized {
     fn from_map(descriptor: &MapDescriptor, point: Self::Point) -> Self::Output;
 }
 
-mod biomes;
+pub mod biomes;
 use biomes::*;
 
 mod map_parameters;

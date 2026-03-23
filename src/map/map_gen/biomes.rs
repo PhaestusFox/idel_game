@@ -22,7 +22,7 @@ use crate::map::map_gen::map_parameters::*;
 use bevy::prelude::*;
 
 use crate::map::{Block, CHUNK_SIZE};
-pub trait BiomeDescriptor: 'static + Send + Sync {
+pub trait BiomeDescriptor: 'static + Send + Sync + Reflect {
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }

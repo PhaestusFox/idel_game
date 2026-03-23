@@ -1,8 +1,9 @@
 use super::*;
 
+#[derive(Reflect)]
 pub struct DebugBiome {
-    scale: u32,
-    param: DebugBiomeType,
+    pub scale: u32,
+    pub param: DebugBiomeType,
 }
 
 impl DebugBiome {
@@ -11,12 +12,19 @@ impl DebugBiome {
     }
 }
 
+#[derive(Component, Clone, Copy, Debug, Reflect)]
 pub enum DebugBiomeType {
     Height,
+    Rainfall,
+    Fertility,
+    GroundHeight2,
 }
 
 impl BiomeDescriptor for DebugBiome {
-    fn strength(&self, point: IVec2, noise: &MapDescriptor) -> Option<f32> {
+    fn name(&self) -> &str {
+        "Debug"
+    }
+    fn strength(&self, _: IVec2, _: &MapDescriptor) -> Option<f32> {
         Some(1.)
     }
     fn generate_column(
@@ -30,6 +38,15 @@ impl BiomeDescriptor for DebugBiome {
         let h = match self.param {
             DebugBiomeType::Height => {
                 (noise.get::<GroundHeight>(IVec2::new(p.x, p.z)) * 0.5 + 0.5) * CHUNK_SIZE as f32
+            }
+            DebugBiomeType::Rainfall => {
+                noise.get::<RainFall>(IVec2::new(p.x, p.z)) * CHUNK_SIZE as f32
+            }
+            DebugBiomeType::Fertility => {
+                noise.get::<Fertility>(IVec2::new(p.x, p.z)) * CHUNK_SIZE as f32
+            }
+            DebugBiomeType::GroundHeight2 => {
+                (noise.get::<GroundHeight2>(IVec2::new(p.x, p.z)) * 0.5 + 0.5) * CHUNK_SIZE as f32
             }
         };
         for y in 0..CHUNK_SIZE as usize {

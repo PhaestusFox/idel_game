@@ -32,6 +32,7 @@ mod chunk;
 mod map_gen;
 pub use chunk::*;
 use indexmap::IndexSet;
+use map_gen::biomes::*;
 mod ambiance;
 
 use crate::rendering::CustomMaterial;
@@ -75,7 +76,7 @@ pub struct ChunkGenerator {
     dirty: bool,
     max_chunk_tasks: usize,
     que: IndexSet<IVec3>,
-    world: Arc<RwLock<map_gen::MapDescriptor>>,
+    map: Arc<RwLock<map_gen::MapDescriptor>>,
     #[cfg(feature = "profile")]
     timings: (
         std::sync::Mutex<std::sync::mpsc::Receiver<std::time::Duration>>,
@@ -114,9 +115,9 @@ impl FromWorld for ChunkGenerator {
             dummy_image: asset_server.add(ChunkData::dummy_image()),
             max_chunk_tasks: 250,
             #[cfg(not(feature = "profile"))]
-            world: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
+            map: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
             #[cfg(feature = "profile")]
-            world: Arc::new(RwLock::new(map_gen::MapDescriptor::new(0, send))),
+            map: Arc::new(RwLock::new(map_gen::MapDescriptor::new(0, send))),
             #[cfg(feature = "profile")]
             timings: (std::sync::Mutex::new(rec), 0.0, 0),
         }
@@ -170,7 +171,7 @@ impl ChunkGenerator {
         println!("Generating {} chunks", que.len());
         for chunk in que {
             self.que.swap_remove(&chunk);
-            let descriptor = self.world.clone();
+            let descriptor = self.map.clone();
             let ass = asset_server.clone();
             let task = pool.spawn(async move {
                 let descriptor = descriptor.read().unwrap();
@@ -233,6 +234,22 @@ impl ChunkGenerator {
 
     pub fn dummy_image(&self) -> Handle<Image> {
         self.dummy_image.clone()
+    }
+    #[inline(always)]
+    pub fn set_octaves(&mut self, octaves: usize) {
+        self.map.write().unwrap().set_octaves(octaves);
+    }
+    #[inline(always)]
+    pub fn set_frequency(&mut self, frequency: f64) {
+        self.map.write().unwrap().set_frequency(frequency);
+    }
+    #[inline(always)]
+    pub fn set_lacunarity(&mut self, lacunarity: f64) {
+        self.map.write().unwrap().set_lacunarity(lacunarity);
+    }
+    #[inline(always)]
+    pub fn set_persistence(&mut self, persistence: f64) {
+        self.map.write().unwrap().set_persistence(persistence);
     }
 }
 

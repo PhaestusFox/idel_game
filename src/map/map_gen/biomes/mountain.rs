@@ -1,4 +1,6 @@
 use super::*;
+
+#[derive(Reflect)]
 pub struct Mountain {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
     soil_curve: bevy::math::curve::EasingCurve<f32>,
