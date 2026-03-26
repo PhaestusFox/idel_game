@@ -1,8 +1,8 @@
 use bevy::{
     anti_alias::fxaa::Fxaa,
-    input::{common_conditions::input_just_pressed, mouse::AccumulatedMouseMotion},
-    light::{FogVolume, VolumetricFog, VolumetricLight},
-    pbr::{Atmosphere, AtmosphereSettings, DefaultOpaqueRendererMethod, ScatteringMedium},
+    input::mouse::AccumulatedMouseMotion,
+    light::VolumetricFog,
+    pbr::{Atmosphere, AtmosphereSettings, ScatteringMedium},
     post_process::bloom::Bloom,
     prelude::*,
     window::{CursorOptions, PrimaryWindow},
@@ -10,11 +10,8 @@ use bevy::{
 
 use crate::{
     GameState,
-    map::{
-        Block, CHUNK_SIZE, Chunk, ChunkBlock, ChunkData, ChunkGenerator, ChunkId, ChunkLookup, LoD,
-    },
+    map::{CHUNK_SIZE, Chunk, ChunkBlock, ChunkGenerator, ChunkId},
     physics::Weightless,
-    rendering::CustomMaterial,
 };
 
 mod fly_camera;
@@ -121,19 +118,6 @@ pub fn show_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>)
 pub fn hide_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
     windows.visible = false;
     windows.grab_mode = bevy::window::CursorGrabMode::Locked;
-}
-
-fn toggle_cursor(mut windows: Single<&mut CursorOptions, With<PrimaryWindow>>) {
-    match windows.grab_mode {
-        bevy::window::CursorGrabMode::None => {
-            windows.visible = false;
-            windows.grab_mode = bevy::window::CursorGrabMode::Locked;
-        }
-        bevy::window::CursorGrabMode::Confined | bevy::window::CursorGrabMode::Locked => {
-            windows.visible = true;
-            windows.grab_mode = bevy::window::CursorGrabMode::None;
-        }
-    }
 }
 
 pub fn detect_chunk_transition(

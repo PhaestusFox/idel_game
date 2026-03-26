@@ -63,7 +63,7 @@ impl BiomeDescriptor for Hills {
         for y in 0..r_ground as usize {
             let true_y = origin.y + y as i32;
             let block = if true_y > ground - soild_depth {
-                Block::Dirt
+                Block::IronOx
             } else {
                 Block::Stone
             };
@@ -78,8 +78,6 @@ impl BiomeDescriptor for Hills {
         g
     }
 }
-
-use super::*;
 
 #[derive(Reflect)]
 pub struct Mountain {
