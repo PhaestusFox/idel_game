@@ -19,6 +19,8 @@ pub use fly_camera::FlyCameraSettings;
 
 mod player_controller;
 
+mod reycast;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -53,6 +55,9 @@ impl Plugin for PlayerPlugin {
 #[derive(Component)]
 pub struct PlayerEntity;
 
+#[derive(Component)]
+pub struct PlayerCamera;
+
 fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
@@ -82,6 +87,7 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
             Msaa::Off,
             bevy::camera::Exposure { ev100: 12.0 },
             Fxaa::default(),
+            PlayerCamera,
         ));
 }
 

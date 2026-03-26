@@ -1,6 +1,9 @@
+use bevy::state::commands;
+
 use crate::{
     map::{Block, Map},
     physics::{self, Grounded, PhysicsStep, Velocity},
+    player::reycast::SolidHitMode,
 };
 
 use super::*;
@@ -16,6 +19,8 @@ impl Plugin for PlayerControllerPlugin {
                 .run_if(in_state(MoveMode::Walk)),
         )
         .add_systems(PreUpdate, jump.in_set(PhysicsStep::UpdateVelocity));
+
+        app.add_systems(Update, debug_ray);
     }
 }
 
@@ -101,5 +106,63 @@ fn jump(
             .map_or(true, |b| !b.is_solid())
     {
         velocity.y += physics::Gravity::GRAVITY_STRENGTH * 0.25;
+    }
+}
+
+#[derive(Component)]
+struct RayGizmo;
+
+fn debug_ray(
+    ray_cast: super::reycast::Raycast,
+    input: Res<ButtonInput<MouseButton>>,
+    player: Single<&GlobalTransform, With<PlayerCamera>>,
+    offset: Res<ChunkId>,
+    old: Query<Entity, With<RayGizmo>>,
+    mut commands: Commands,
+    mut gizmos: ResMut<Assets<GizmoAsset>>,
+) {
+    if !input.just_pressed(MouseButton::Middle) {
+        return;
+    }
+    // clean up old gizmos
+    for entity in &old {
+        commands.entity(entity).despawn();
+    }
+    let mut asset = GizmoAsset::new();
+    asset.line(
+        player.translation(),
+        player.translation() + player.forward() * 5.,
+        Color::linear_rgb(1., 0., 0.),
+    );
+
+    let mut player = player.compute_transform();
+    player.translation += offset.offset();
+    let path = ray_cast.cast_ray_with_options(&player, 15, SolidHitMode::ContinueThroughSolid);
+    println!("Raycast hit {} blocks", path.len());
+    for block in path.iter() {
+        asset.cube(
+            Transform::from_translation(
+                block.as_vec3() - ray_cast.world_offset.offset() + Vec3::new(0.5, 0.5, 0.5),
+            ),
+            Color::linear_rgb(0., 0., 1.),
+        );
+        print!(
+            "{:?} @ {}, ",
+            reycast::get_block_type(&ray_cast, *block),
+            block
+        );
+    }
+    println!();
+    let mut g = commands.spawn((
+        Gizmo {
+            handle: gizmos.add(asset),
+            ..default()
+        },
+        RayGizmo,
+    ));
+    if let Some(block) = path.last()
+        && let Some(chunk_entity) = ray_cast.lookup.get(&ChunkId::from_block_position(*block))
+    {
+        g.set_parent_in_place(chunk_entity);
     }
 }

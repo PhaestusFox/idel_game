@@ -57,8 +57,14 @@ impl ChunkId {
         Self(IVec3::new(x, y, z))
     }
 
+    #[inline(always)]
     pub fn from_ivec3(vec: IVec3) -> Self {
         Self(vec)
+    }
+
+    #[inline(always)]
+    pub fn from_block_position(pos: IVec3) -> Self {
+        Self::from_ivec3(pos / CHUNK_SIZE as i32)
     }
 
     pub fn from_translation(translation: Vec3) -> Self {

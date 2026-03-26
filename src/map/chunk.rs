@@ -151,6 +151,15 @@ impl ChunkData {
         self.blocks[i]
     }
 
+    /// Get block with bounds checking. Returns None if coordinates are out of chunk bounds.
+    #[inline(always)]
+    pub fn get_block_checked(&self, x: u8, y: u8, z: u8) -> Option<Block> {
+        if x as usize >= CHUNK_SIZE || y as usize >= CHUNK_SIZE || z as usize >= CHUNK_SIZE {
+            return None;
+        }
+        Some(self.get_block(x, y, z))
+    }
+
     #[inline(always)]
     pub fn get_index(x: u8, y: u8, z: u8) -> usize {
         z as usize * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + x as usize
