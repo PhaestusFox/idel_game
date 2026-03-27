@@ -62,11 +62,6 @@ impl ChunkId {
         Self(vec)
     }
 
-    #[inline(always)]
-    pub fn from_block_position(pos: IVec3) -> Self {
-        Self::from_ivec3(pos / CHUNK_SIZE as i32)
-    }
-
     pub fn from_translation(translation: Vec3) -> Self {
         let pos = (translation / CHUNK_SIZE as f32).floor().as_ivec3();
         Self(pos)

@@ -218,7 +218,7 @@ pub struct RenderDistance(u32);
 
 impl Default for RenderDistance {
     fn default() -> Self {
-        Self(20)
+        Self(15)
     }
 }
 
@@ -248,3 +248,5 @@ fn update_visible_chunks(
         }
     }
 }
+
+pub use reycast::Raycast;

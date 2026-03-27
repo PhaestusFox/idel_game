@@ -87,7 +87,7 @@ pub struct ChunkGenerator {
     dirty: bool,
     max_chunk_tasks: usize,
     que: IndexSet<ChunkId>,
-    map: Arc<RwLock<map_gen::MapDescriptor>>,
+    pub map: Arc<RwLock<map_gen::MapDescriptor>>,
     #[cfg(feature = "profile")]
     timings: (
         std::sync::Mutex<std::sync::mpsc::Receiver<std::time::Duration>>,
@@ -523,28 +523,34 @@ impl std::ops::Sub<ChunkBlock> for ChunkId {
 }
 
 #[derive(SystemParam)]
-pub struct Map<'w> {
-    lookup: Res<'w, ChunkLookup>,
-    data: Res<'w, Assets<ChunkData>>,
-    world_offset: Res<'w, ChunkId>,
+pub struct Map<'w, 's> {
+    pub lookup: Res<'w, ChunkLookup>,
+    pub data: Res<'w, Assets<ChunkData>>,
+    pub world_offset: Res<'w, ChunkId>,
+    pub chunks: Query<'w, 's, &'static Chunk>,
 }
 
-impl<'w> Map<'w> {
-    pub fn get_block(&self, pos: Vec3, chunks: Query<&Chunk>) -> Result<Block, MapError> {
+impl<'w, 's> Map<'w, 's> {
+    pub fn get_block(&self, pos: Vec3) -> Result<Block, MapError> {
         let pos = pos.floor() + Vec3::splat(CHUNK_SIZE as f32 * 0.5);
         let chunk_id = ChunkId::from_translation(pos) + *self.world_offset;
+        let chunk_data = self.get_chunk_data(chunk_id)?;
+        let foot = (pos).as_ivec3().rem_euclid(IVec3::splat(CHUNK_SIZE as i32));
+        let block = chunk_data.get_block(foot.x as u8, foot.y as u8, foot.z as u8);
+        Ok(block)
+    }
+
+    pub fn get_chunk_data(&self, chunk_id: ChunkId) -> Result<&ChunkData, MapError> {
         let Some(chunk_entity) = self.lookup.get(&chunk_id) else {
             return Err(MapError::NoEntity);
         };
-        let Ok(chunk) = chunks.get(chunk_entity) else {
+        let Ok(chunk) = self.chunks.get(chunk_entity) else {
             return Err(MapError::NoChunk);
         };
         let Some(chunk_data) = self.data.get(&chunk.data) else {
             return Err(MapError::NoChunkData);
         };
-        let foot = (pos).as_ivec3().rem_euclid(IVec3::splat(CHUNK_SIZE as i32));
-        let block = chunk_data.get_block(foot.x as u8, foot.y as u8, foot.z as u8);
-        Ok(block)
+        Ok(chunk_data)
     }
 }
 

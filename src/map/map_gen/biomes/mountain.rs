@@ -5,10 +5,11 @@ pub struct Hills {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
     soil_curve: bevy::math::curve::EasingCurve<f32>,
     strength_curve: bevy::math::curve::EasingCurve<f32>,
+    thershold: f32,
 }
 
 impl Hills {
-    pub fn new() -> Self {
+    pub fn new(thershold: f32) -> Self {
         Self {
             ground_curve: bevy::math::curve::EasingCurve::new(
                 0.,
@@ -23,8 +24,9 @@ impl Hills {
             strength_curve: bevy::math::curve::EasingCurve::new(
                 0.,
                 1.,
-                bevy::math::curve::easing::EaseFunction::ExponentialIn,
+                bevy::math::curve::easing::EaseFunction::Linear,
             ),
+            thershold,
         }
     }
 }
@@ -34,13 +36,13 @@ impl BiomeDescriptor for Hills {
         "Hills"
     }
     fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
-        let g = (noise.get::<GroundHeight>(point) + 0.1) * 0.9;
+        let g = (noise.get::<GroundHeight2>(point) + 0.1) * 0.9;
         self.strength_curve.sample_unchecked(g.clamp(0., 1.))
     }
     fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
-        let g = descriptor.get::<GroundHeight>(point);
-        if g > -0.1 && g < 0.4 {
-            ((g + 0.1) * 128.0) as u8
+        let g = descriptor.get::<GroundHeight2>(point);
+        if g > 0. {
+            ((g / self.thershold).clamp(0., 1.) * 64.) as u8
         } else {
             0
         }
@@ -86,15 +88,16 @@ pub struct Mountain {
     frost_line: i32,
     snow_line: i32,
     strength_curve: bevy::math::curve::EasingCurve<f32>,
+    th: f32,
 }
 
 impl Mountain {
-    pub fn new() -> Self {
+    pub fn new(threshold: f32) -> Self {
         Self {
             ground_curve: bevy::math::curve::EasingCurve::new(
                 0.,
                 700.,
-                bevy::math::curve::easing::EaseFunction::QuadraticIn,
+                bevy::math::curve::easing::EaseFunction::ExponentialOut,
             ),
             soil_curve: bevy::math::curve::EasingCurve::new(
                 0.,
@@ -106,8 +109,9 @@ impl Mountain {
             strength_curve: bevy::math::curve::EasingCurve::new(
                 0.,
                 1.,
-                bevy::math::curve::easing::EaseFunction::ExponentialIn,
+                bevy::math::curve::easing::EaseFunction::Linear,
             ),
+            th: threshold,
         }
     }
 }
@@ -117,13 +121,16 @@ impl BiomeDescriptor for Mountain {
         "Mountain"
     }
     fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
-        let g = (noise.get::<GroundHeight>(point) - 0.2) * 2.;
-        let s = self.strength_curve.sample_unchecked(g.clamp(0., 1.));
-        s
+        let g = noise.get::<GroundHeight2>(point);
+        ((g - self.th) / (1. - self.th)) * 10.
     }
     fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
-        let g = descriptor.get::<GroundHeight>(point);
-        if g > 0.2 { (g * 255.) as u8 } else { 0 }
+        let g = descriptor.get::<GroundHeight2>(point);
+        if g > self.th {
+            ((g - self.th) / (1. - self.th) * 256.) as u8
+        } else {
+            0
+        }
     }
 
     fn generate_column(
@@ -164,7 +171,8 @@ impl BiomeDescriptor for Mountain {
     }
     fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32 {
         let ground_l = descriptor.get::<GroundHeight>(point);
-        let g = self.ground_curve.sample_unchecked(ground_l);
+        let sg = ground_l * 0.5 + 0.5;
+        let g = self.ground_curve.sample_unchecked(sg);
         // println!("Ground height: {}({})", g, ground_l);
         g
     }

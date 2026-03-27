@@ -24,9 +24,9 @@
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-use crate::map::{Block, CHUNK_SIZE, Chunk, ChunkData, ChunkId};
+use crate::map::{Block, CHUNK_SIZE, Chunk, ChunkData, ChunkId, Map};
 
-const DEFAULT_RAYCAST_DISTANCE_BLOCKS: u32 = 5;
+const DEFAULT_RAYCAST_DISTANCE_BLOCKS: u32 = 15;
 const HALF_CHUNK_I32: i32 = CHUNK_SIZE as i32 / 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,13 +37,17 @@ pub enum SolidHitMode {
 
 #[derive(SystemParam)]
 pub struct Raycast<'w, 's> {
-    pub lookup: Res<'w, crate::map::ChunkLookup>,
-    chunks: Query<'w, 's, &'static crate::map::Chunk>,
-    data: Res<'w, Assets<ChunkData>>,
-    pub world_offset: Res<'w, ChunkId>,
+    pub map: Map<'w, 's>,
+    player: Single<'w, 's, &'static GlobalTransform, With<crate::player::PlayerCamera>>,
 }
 
 impl<'w, 's> Raycast<'w, 's> {
+    pub fn get_player_hit(&self) -> Option<IVec3> {
+        let mut player_transform = self.player.compute_transform();
+        player_transform.translation += self.map.world_offset.offset();
+        self.get_hit(&player_transform)
+    }
+
     /// gets the position for the first solid block hit by a ray (world-space coordinates)
     pub fn get_hit(&self, origin: &Transform) -> Option<IVec3> {
         self.get_hit_with_distance(origin, DEFAULT_RAYCAST_DISTANCE_BLOCKS)
@@ -51,8 +55,9 @@ impl<'w, 's> Raycast<'w, 's> {
 
     /// gets the position for the first solid block hit by a ray with specified distance
     pub fn get_hit_with_distance(&self, origin: &Transform, max_distance: u32) -> Option<IVec3> {
-        let mut state = RayState::new(origin, max_distance);
-        self.traverse_ray(&mut state)
+        self.cast_ray_with_distance(origin, max_distance)
+            .last()
+            .cloned()
     }
 
     /// gets the path of the ray until it hits a solid block (world-space coordinates)
@@ -78,16 +83,9 @@ impl<'w, 's> Raycast<'w, 's> {
 
         loop {
             let chunk_id = state.chunk_id;
-
             // Get the chunk entity and data
-            let Some(chunk_entity) = self.lookup.get(&chunk_id) else {
-                break; // Ray exited loaded chunks
-            };
-            let Ok(chunk) = self.chunks.get(chunk_entity) else {
-                break;
-            };
-            let Some(chunk_data) = self.data.get(&chunk.data) else {
-                break;
+            let Ok(chunk_data) = self.map.get_chunk_data(chunk_id) else {
+                break; // No chunk, end ray
             };
 
             // Traverse this chunk
@@ -171,14 +169,8 @@ impl<'w, 's> Raycast<'w, 's> {
         loop {
             let chunk_id = state.chunk_id;
 
-            let Some(chunk_entity) = self.lookup.get(&chunk_id) else {
-                return None;
-            };
-            let Ok(chunk) = self.chunks.get(chunk_entity) else {
-                return None;
-            };
-            let Some(chunk_data) = self.data.get(&chunk.data) else {
-                return None;
+            let Ok(chunk_data) = self.map.get_chunk_data(chunk_id) else {
+                return None; // No chunk, end ray
             };
 
             match self.update_ray(state, chunk_data, true) {
@@ -236,7 +228,7 @@ impl RayState {
 
         // Start at floored origin block
         let current = origin_pos.floor().as_ivec3();
-        let chunk_id = ChunkId::from_block_position(Self::to_chunk_space_block(current));
+        let chunk_id = Self::chunk_id_for_block(current);
 
         // Initialize DDA stepping based on ray direction
         let (step_x, t_delta_x, t_max_x) =
@@ -304,6 +296,11 @@ impl RayState {
         block + IVec3::splat(HALF_CHUNK_I32)
     }
 
+    #[inline(always)]
+    fn chunk_id_for_block(block: IVec3) -> ChunkId {
+        ChunkId::from_translation(Self::to_chunk_space_block(block).as_vec3())
+    }
+
     /// Advance ray to next voxel using DDA
     /// Returns (new_chunk_id_if_boundary_crossed, exceeded_distance_limit)
     /// If boundary crossed, new_chunk_id is returned
@@ -335,7 +332,7 @@ impl RayState {
         }
 
         // Check if we crossed chunk boundary
-        let new_chunk_id = ChunkId::from_block_position(Self::to_chunk_space_block(self.current));
+        let new_chunk_id = Self::chunk_id_for_block(self.current);
         if new_chunk_id != self.chunk_id {
             Some((new_chunk_id, false)) // Chunk boundary crossed
         } else {
@@ -354,25 +351,4 @@ enum RaycastResult {
     Hit(IVec3),
     Next(ChunkId),
     Done,
-}
-
-pub fn get_block_type(ray: &Raycast, block: IVec3) -> Block {
-    let chunk_space_block = block + IVec3::splat(HALF_CHUNK_I32);
-    let chunk = ChunkId::from_block_position(chunk_space_block);
-    let Some(chunk_entity) = ray.lookup.get(&chunk) else {
-        return Block::Void; // Treat out-of-chunk as air
-    };
-    let Ok(chunk) = ray.chunks.get(chunk_entity) else {
-        return Block::Void;
-    };
-    let Some(chunk_data) = ray.data.get(&chunk.data) else {
-        return Block::Void;
-    };
-    chunk_data
-        .get_block_checked(
-            chunk_space_block.x.rem_euclid(CHUNK_SIZE as i32) as u8,
-            chunk_space_block.y.rem_euclid(CHUNK_SIZE as i32) as u8,
-            chunk_space_block.z.rem_euclid(CHUNK_SIZE as i32) as u8,
-        )
-        .unwrap_or(Block::Void)
 }

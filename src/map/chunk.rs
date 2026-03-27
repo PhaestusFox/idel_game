@@ -7,7 +7,6 @@ use bevy::{
     mesh::PrimitiveTopology,
     render::render_resource::Extent3d,
 };
-use bevy_inspector_egui::egui::emath;
 
 pub const CHUNK_SIZE: usize = 64;
 pub const CHUNK_OFFSET: Vec3 = Vec3::splat(CHUNK_SIZE as f32 * 0.5 - 1.0);

@@ -26,9 +26,13 @@ impl MapDescriptor {
     ) -> Self {
         let biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>> = RwLock::new(vec![
             // Box::new(Badland::new()),
-            Box::new(Hills::new()),
-            Box::new(Mountain::new()),
-            // Box::new(Plains::new(0.2)),
+            // Box::new(Hills::new(-0.1)),
+            // Box::new(Hills::new(0.0)),
+            // Box::new(Hills::new(0.1)),
+            // Box::new(Mountain::new(0.3)),
+            Box::new(Mountain::new(0.1)),
+            // Box::new(Mountain::new(0.2)),
+            // Box::new(Plains::new(0.1)),
             // Box::new(Desert::new(0.2)),
             // Box::new(Ocean::new()),
             // Box::new(DebugBiome::new(DebugBiomeType::Height, 1)),
@@ -76,6 +80,10 @@ impl MapDescriptor {
 
     pub fn biomes_mut(&mut self) -> &mut Vec<Box<dyn BiomeDescriptor>> {
         self.biomes.get_mut().unwrap()
+    }
+
+    pub fn biomes(&self) -> std::sync::RwLockReadGuard<'_, Vec<Box<dyn BiomeDescriptor>>> {
+        self.biomes.read().unwrap()
     }
 }
 
@@ -157,7 +165,26 @@ impl MapDescriptor {
         data
     }
 
-    fn calculate_biome(&self, x: i32, z: i32) -> (usize, i32) {
+    pub fn calculate_biome(&self, x: i32, z: i32) -> (usize, i32) {
+        let top3 = self.calculate_biomes(x, z);
+        let biomes = self.biomes.read().unwrap();
+        let mut out = [(0., 0.); 3];
+        for (i, (index, _)) in top3.into_iter().enumerate() {
+            let biome = &biomes[index];
+            let strength = biome.strength(IVec2::new(x, z), self);
+            out[i] = (strength, biome.ground_height(IVec2::new(x, z), self));
+        }
+        let total_strength = vec3(out[0].0, out[1].0, out[2].0).normalize();
+        let correct = total_strength.x + total_strength.y + total_strength.z;
+        let total_strength = total_strength / correct;
+        let ground_level = (out[0].1 * total_strength.x
+            + out[1].1 * total_strength.y
+            + out[2].1 * total_strength.z) as i32;
+
+        (top3[0].0, ground_level as i32)
+    }
+
+    pub fn calculate_biomes(&self, x: i32, z: i32) -> [(usize, u8); 3] {
         let point = IVec2::new(x, z);
         let biomes = self.biomes.read().unwrap();
         let mut top3 = [(0, 0); 3];
@@ -176,18 +203,7 @@ impl MapDescriptor {
                 }
             }
         }
-        let mut out = [(0., 0.); 3];
-        let mut total_strength = 0.;
-        for ((biome, w), (p, h)) in top3.into_iter().zip(out.iter_mut()) {
-            let b = &biomes[biome];
-            *p = b.strength(IVec2::new(x, z), self);
-            *h = b.ground_height(IVec2::new(x, z), self);
-            total_strength += *p;
-        }
-        let ground_level = out
-            .iter()
-            .fold(0., |acc, (p, h)| acc + (p / total_strength) * h);
-        (top3[0].0, ground_level as i32)
+        top3
     }
 
     #[inline(always)]

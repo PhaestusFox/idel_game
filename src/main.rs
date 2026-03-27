@@ -46,6 +46,9 @@ fn main() {
     app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
     app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
     app.add_systems(Update, quit);
+
+    // app.add_systems(First, fly_forever);
+
     app.run();
 }
 
@@ -66,4 +69,8 @@ fn quit(keyboard_input: Res<ButtonInput<KeyCode>>, mut app_exit_events: MessageW
     if keyboard_input.just_pressed(KeyCode::F9) {
         app_exit_events.write(AppExit::Success);
     }
+}
+
+fn fly_forever(mut input: ResMut<ButtonInput<KeyCode>>) {
+    input.press(KeyCode::KeyW);
 }

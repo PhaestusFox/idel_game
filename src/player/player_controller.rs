@@ -31,7 +31,6 @@ fn move_player(
     settings: Res<FlyCameraSettings>,
     mut player: Single<&mut Transform, With<PlayerEntity>>,
     map: Map,
-    chunks: Query<&Chunk>,
 ) {
     let forward = {
         let mut v = *player.forward();
@@ -66,11 +65,11 @@ fn move_player(
     let mut x_check = player.translation;
     x_check.x += delta.x + delta.x.signum() * 0.1;
     let r = map
-        .get_block(x_check, chunks)
+        .get_block(x_check)
         .map(|b| b.is_solid())
         .unwrap_or(false)
         | map
-            .get_block(x_check + Vec3::Y, chunks)
+            .get_block(x_check + Vec3::Y)
             .map(|b| b.is_solid())
             .unwrap_or(false);
     if r {
@@ -79,11 +78,11 @@ fn move_player(
     let mut z_check = player.translation;
     z_check.z += delta.z + delta.z.signum() * 0.1;
     let f = map
-        .get_block(z_check, chunks)
+        .get_block(z_check)
         .map(|b| b.is_solid())
         .unwrap_or(false)
         | map
-            .get_block(z_check + Vec3::Y, chunks)
+            .get_block(z_check + Vec3::Y)
             .map(|b| b.is_solid())
             .unwrap_or(false);
     if f {
@@ -97,12 +96,11 @@ fn jump(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player: Single<(&mut Transform, &mut Velocity, &Grounded), With<PlayerEntity>>,
     map: Map,
-    chunks: Query<&Chunk>,
 ) {
     let (mut transform, mut velocity, grounded) = player.into_inner();
     if keyboard_input.just_pressed(KeyCode::Space) & grounded
         && map
-            .get_block(transform.translation + Vec3::new(0., 2.1, 0.), chunks)
+            .get_block(transform.translation + Vec3::new(0., 2.1, 0.))
             .map_or(true, |b| !b.is_solid())
     {
         velocity.y += physics::Gravity::GRAVITY_STRENGTH * 0.25;
@@ -131,28 +129,21 @@ fn debug_ray(
     let mut asset = GizmoAsset::new();
     asset.line(
         player.translation(),
-        player.translation() + player.forward() * 5.,
+        player.translation() + player.forward() * 15.,
         Color::linear_rgb(1., 0., 0.),
     );
 
     let mut player = player.compute_transform();
     player.translation += offset.offset();
     let path = ray_cast.cast_ray_with_options(&player, 15, SolidHitMode::ContinueThroughSolid);
-    println!("Raycast hit {} blocks", path.len());
     for block in path.iter() {
         asset.cube(
             Transform::from_translation(
-                block.as_vec3() - ray_cast.world_offset.offset() + Vec3::new(0.5, 0.5, 0.5),
+                block.as_vec3() - ray_cast.map.world_offset.offset() + Vec3::new(0.5, 0.5, 0.5),
             ),
             Color::linear_rgb(0., 0., 1.),
         );
-        print!(
-            "{:?} @ {}, ",
-            reycast::get_block_type(&ray_cast, *block),
-            block
-        );
     }
-    println!();
     let mut g = commands.spawn((
         Gizmo {
             handle: gizmos.add(asset),
@@ -160,9 +151,14 @@ fn debug_ray(
         },
         RayGizmo,
     ));
-    if let Some(block) = path.last()
-        && let Some(chunk_entity) = ray_cast.lookup.get(&ChunkId::from_block_position(*block))
-    {
-        g.set_parent_in_place(chunk_entity);
+    if let Some(block) = path.last() {
+        let chunk_space_block = *block + IVec3::splat(CHUNK_SIZE as i32 / 2);
+        if let Some(chunk_entity) = ray_cast
+            .map
+            .lookup
+            .get(&ChunkId::from_translation(chunk_space_block.as_vec3()))
+        {
+            g.set_parent_in_place(chunk_entity);
+        }
     }
 }

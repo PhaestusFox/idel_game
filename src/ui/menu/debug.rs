@@ -1,6 +1,4 @@
-use bevy::{
-    diagnostic::DiagnosticsStore, log::tracing_subscriber::fmt::format, window::PrimaryWindow,
-};
+use bevy::{diagnostic::DiagnosticsStore, window::PrimaryWindow};
 
 use crate::{
     map::ChunkId,
@@ -18,6 +16,7 @@ impl Menu for DebugMenu {
         if !app.is_plugin_added::<bevy::diagnostic::FrameTimeDiagnosticsPlugin>() {
             app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
         }
+        app.add_plugins(biome_seeker::BiomeDebugPlugin);
         app.add_systems(Update, update_fps);
         app.add_systems(Update, update_pos_text);
         app.add_systems(Startup, spawn_console);
@@ -104,6 +103,15 @@ fn open_debug_menu(
                 clean.clone(),
             ),
         ],
+    ));
+
+    root.with_child((
+        Node::DEFAULT,
+        children![(
+            checkbox((), Spawn((Text::new("Enable Biome Seeker"), ThemedText))),
+            observe(biome_seeker::toggle_biome_seeker),
+            clean.clone(),
+        ),],
     ));
 }
 
@@ -259,3 +267,5 @@ fn update_pos_text(
         }
     }
 }
+
+mod biome_seeker;

@@ -25,7 +25,7 @@ impl Plains {
             strength_curve: bevy::math::curve::EasingCurve::new(
                 0.,
                 1.,
-                bevy::math::curve::easing::EaseFunction::ExponentialIn,
+                bevy::math::curve::easing::EaseFunction::Linear,
             ),
         }
     }
