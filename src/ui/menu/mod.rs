@@ -319,7 +319,7 @@ unsafe impl SystemParam for MenuBuilderState {
     }
 }
 
-// Checkbox implementation
+// helper functions for building menus
 impl MenuBuilder<'_, '_> {
     pub fn root(&self) -> Entity {
         self.menu_state.root
@@ -328,32 +328,21 @@ impl MenuBuilder<'_, '_> {
     pub fn current_open(&self) -> MenuId {
         self.menu_state.open
     }
+}
 
+// Checkbox implementation
+impl MenuBuilder<'_, '_> {
     #[inline(always)]
-    pub fn add_checkbox<B: Bundle, M, I>(&mut self, label: impl Into<String>, on_check: I)
+    pub fn add_checkbox<B: Bundle, M, I>(
+        &mut self,
+        label: impl Into<String>,
+        on_check: I,
+    ) -> &mut Self
     where
         I: IntoObserverSystem<ValueChange<bool>, B, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
-        self.add_checkbox_with_state(label, on_check, false);
-    }
-
-    pub fn add_checkbox_with_ext<B: Bundle, OB: Bundle, M, I>(
-        &mut self,
-        label: impl Into<String>,
-        on_check: I,
-        bundle: B,
-    ) where
-        I: IntoObserverSystem<ValueChange<bool>, OB, M> + Send + Sync + 'static,
-        M: Send + Sync + 'static,
-    {
-        let close = DespawnOnExit(self.current_open());
-        self.commands.entity(self.root()).with_child((
-            checkbox((), Spawn((Text::new(label), ThemedText))),
-            observe(on_check),
-            close,
-            bundle,
-        ));
+        self.add_checkbox_with_state(label, on_check, false)
     }
 
     #[inline(always)]
@@ -362,15 +351,37 @@ impl MenuBuilder<'_, '_> {
         label: impl Into<String>,
         on_check: I,
         checked: bool,
-    ) where
+    ) -> &mut Self
+    where
         I: IntoObserverSystem<ValueChange<bool>, B, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
         if checked {
-            self.add_checkbox_with_ext(label, on_check, Checked);
+            self.add_checkbox_with_ext(label, on_check, Checked)
         } else {
-            self.add_checkbox_with_ext(label, on_check, ());
+            self.add_checkbox_with_ext(label, on_check, ())
         }
+    }
+
+    pub fn add_checkbox_with_ext<B: Bundle, OB: Bundle, M, I>(
+        &mut self,
+        label: impl Into<String>,
+        on_check: I,
+        bundle: B,
+    ) -> &mut Self
+    where
+        I: IntoObserverSystem<ValueChange<bool>, OB, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        let close = DespawnOnExit(self.current_open());
+        self.commands.spawn((
+            checkbox((), Spawn((Text::new(label), ThemedText))),
+            observe(on_check),
+            close,
+            bundle,
+            ChildOf(self.root()),
+        ));
+        self
     }
 }
 
@@ -416,13 +427,14 @@ impl MenuBuilder<'_, '_> {
         }
     }
 
-    pub fn label(&mut self, text: impl Into<String>) {
+    pub fn label(&mut self, text: impl Into<String>) -> &mut Self {
         self.commands.spawn((
             Text::new(text),
             ThemedText,
             ChildOf(self.root()),
             DespawnOnExit(self.current_open()),
         ));
+        self
     }
 }
 
@@ -458,19 +470,24 @@ impl SliderSettings {
 // Slider implementation
 impl MenuBuilder<'_, '_> {
     #[inline(always)]
-    pub fn add_slider<B: Bundle, M, I>(&mut self, on_change: I, settings: SliderSettings)
+    pub fn add_slider<B: Bundle, M, I>(
+        &mut self,
+        on_change: I,
+        settings: SliderSettings,
+    ) -> &mut Self
     where
         I: IntoObserverSystem<ValueChange<f32>, B, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
-        self.add_slider_with_ext(on_change, settings, ());
+        self.add_slider_with_ext(on_change, settings, ())
     }
     pub fn add_slider_with_ext<B: Bundle, OB: Bundle, M, I>(
         &mut self,
         on_change: I,
         settings: SliderSettings,
         bundle: B,
-    ) where
+    ) -> &mut Self
+    where
         I: IntoObserverSystem<ValueChange<f32>, OB, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
@@ -490,5 +507,6 @@ impl MenuBuilder<'_, '_> {
         if let Some(step) = settings.step {
             c.insert(SliderStep(step));
         }
+        self
     }
 }
