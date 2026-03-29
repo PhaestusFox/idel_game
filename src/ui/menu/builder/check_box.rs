@@ -1,3 +1,6 @@
+use super::*;
+use bevy::{feathers::controls::checkbox, ui::Checked, ui_widgets::ValueChange};
+
 // Checkbox implementation
 impl MenuBuilder<'_, '_> {
     #[inline(always)]

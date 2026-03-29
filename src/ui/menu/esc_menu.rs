@@ -9,46 +9,17 @@ impl Menu for EscapeMenu {
     }
 }
 
-fn open_escape(mut commands: Commands, root: Single<Entity, With<MenuRoot>>) {
-    let quit = MenuAction::from_commands(&mut commands, open_menu::<main::MainMenu>());
-    let resume = MenuAction::from_commands(&mut commands, to_play);
-    let open_settings =
-        MenuAction::from_commands(&mut commands, open_menu::<settings_menu::SettingsMenu>());
-    let dso = DespawnOnExit(EscapeMenu::id());
-    let open_debug = MenuAction::from_commands(&mut commands, open_menu::<debug::DebugMenu>());
-
-    commands.entity(*root).insert(children![
-        button(
-            ButtonProps {
-                variant: ButtonVariant::Primary,
-                corners: feathers::rounded_corners::RoundedCorners::Top,
-            },
-            (dso.clone(), resume),
-            Spawn((Text::new("Resume"), ThemedText))
-        ),
-        button(
-            ButtonProps {
-                variant: ButtonVariant::Normal,
-                corners: feathers::rounded_corners::RoundedCorners::None,
-            },
-            (dso.clone(), open_settings),
-            Spawn((Text::new("Settings"), ThemedText))
-        ),
-        button(
-            ButtonProps {
-                variant: ButtonVariant::Normal,
-                corners: feathers::rounded_corners::RoundedCorners::Bottom,
-            },
-            (dso.clone(), open_debug),
-            Spawn((Text::new("Debug Menu"), ThemedText))
-        ),
-        button(
-            ButtonProps {
-                variant: ButtonVariant::Normal,
-                corners: feathers::rounded_corners::RoundedCorners::Bottom,
-            },
-            (dso, quit),
-            Spawn((Text::new("Main Menu"), ThemedText))
-        ),
-    ]);
+fn open_escape(mut builder: super::MenuBuilder) {
+    builder.label("Escape Menu");
+    builder.button_with_props(
+        "Resume",
+        to_play,
+        ButtonProps {
+            variant: ButtonVariant::Primary,
+            corners: feathers::rounded_corners::RoundedCorners::Top,
+        },
+    );
+    builder.button("Settings", open_menu::<settings_menu::SettingsMenu>());
+    builder.button("Debug Menu", open_menu::<debug::DebugMenu>());
+    builder.button("Main menu", open_menu::<main::MainMenu>());
 }

@@ -16,18 +16,7 @@ impl Menu for SettingsMenu {
     }
 }
 
-fn open_settings_menu(mut commands: Commands, root: Single<Entity, With<MenuRoot>>) {
-    let camera_setting = MenuAction::from_commands(
-        &mut commands,
-        open_menu::<camera_settings::CameraSettingsMenu>(),
-    );
-    let dso = DespawnOnExit(SettingsMenu::id());
-    commands.entity(*root).insert(children![button(
-        ButtonProps {
-            variant: ButtonVariant::Normal,
-            corners: feathers::rounded_corners::RoundedCorners::All
-        },
-        (dso, camera_setting),
-        Spawn((Text::new("Camera Settings"), ThemedText))
-    ),]);
+fn open_settings_menu(mut builder: super::MenuBuilder) {
+    builder.label("Settings");
+    builder.button("Camera", open_menu::<camera_settings::CameraSettingsMenu>());
 }

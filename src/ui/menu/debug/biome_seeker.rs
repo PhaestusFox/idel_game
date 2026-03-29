@@ -32,7 +32,7 @@ pub fn toggle_biome_seeker(
     check: On<ValueChange<bool>>,
     mut biome_seeker: ResMut<BiomeSeeker>,
     mut commands: Commands,
-    open: Query<Entity, With<BiomeInfoText>>,
+    open: Query<(Entity, &BiomeInfoText)>,
     console: Single<Entity, With<DebugConsole>>,
 ) {
     if check.value {
@@ -40,8 +40,11 @@ pub fn toggle_biome_seeker(
         spawn_biome_info(commands, *console);
     } else {
         commands.entity(check.source).remove::<Checked>();
-        open.iter()
-            .for_each(|entity| commands.entity(entity).despawn());
+        open.iter().for_each(|(entity, text)| {
+            if BiomeInfoText::Root != *text {
+                commands.entity(entity).despawn();
+            }
+        });
     }
     biome_seeker.ray_cast_biome_info = check.value;
 }
@@ -61,7 +64,7 @@ fn spawn_biome_info(mut commands: Commands, console: Entity) {
     ));
 }
 
-#[derive(Component)]
+#[derive(Component, PartialEq, Eq)]
 pub enum BiomeInfoText {
     Root,
     Main,

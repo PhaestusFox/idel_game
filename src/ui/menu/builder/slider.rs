@@ -1,3 +1,8 @@
+use bevy::{
+    feathers::controls::{SliderProps, slider},
+    ui_widgets::{SliderPrecision, SliderStep, ValueChange},
+};
+
 use super::*;
 
 #[derive(Debug)]

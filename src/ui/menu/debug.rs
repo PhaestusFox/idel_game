@@ -1,4 +1,7 @@
-use bevy::{diagnostic::DiagnosticsStore, window::PrimaryWindow};
+use bevy::{
+    diagnostic::DiagnosticsStore,
+    window::{PresentMode, PrimaryWindow},
+};
 
 use crate::{
     map::ChunkId,
@@ -43,19 +46,131 @@ fn spawn_console(mut commands: Commands) {
     ));
 }
 
-fn open_debug_menu(mode: Res<State<MoveMode>>, mut menu: super::MenuBuilder) {
-    menu.add_checkbox("Show FPS", toggle_fps);
-    menu.add_checkbox("Cap 60 FPS", toggle_cap);
-    menu.add_checkbox_with_state("Fly Mode", toggle_fly, *mode.get() == MoveMode::Fly);
-    menu.add_checkbox("Open Map Debug Console", crate::map::debug::toggle_console);
-    let mut pos = menu.horizontal();
-    pos.add_checkbox_with_ext("Show Local X,Y,Z", toggle_local, PosText::Local);
-    pos.add_checkbox_with_ext("Show Global X,Y,Z", toggle_local, PosText::Global);
-    pos.add_checkbox_with_ext("Show Offset", toggle_local, PosText::Offset);
-    pos.add_checkbox_with_ext("Show ChunkId", toggle_local, PosText::ChunkId);
+struct DebugMenuState {
+    show_fps: bool,
+    cap_60: bool,
+    fly_mode: bool,
+    console_open: bool,
+    show_local: bool,
+    show_global: bool,
+    show_offset: bool,
+    show_chunk_id: bool,
+    show_biome_seeker: bool,
+}
+
+unsafe impl SystemParam for DebugMenuState {
+    type Item<'world, 'state> = DebugMenuState;
+    type State = ();
+    fn init_access(
+        state: &Self::State,
+        system_meta: &mut bevy::ecs::system::SystemMeta,
+        component_access_set: &mut bevy::ecs::query::FilteredAccessSet,
+        world: &mut World,
+    ) {
+        component_access_set.read_all();
+    }
+    fn init_state(world: &mut World) -> Self::State {}
+    unsafe fn get_param<'world, 'state>(
+        state: &'state mut Self::State,
+        system_meta: &bevy::ecs::system::SystemMeta,
+        world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell<'world>,
+        change_tick: bevy::ecs::change_detection::Tick,
+    ) -> Self::Item<'world, 'state> {
+        let mut state = DebugMenuState {
+            show_fps: false,
+            cap_60: false,
+            fly_mode: false,
+            console_open: false,
+            show_local: false,
+            show_global: false,
+            show_offset: false,
+            show_chunk_id: false,
+            show_biome_seeker: false,
+        };
+        unsafe {
+            state.show_fps = world
+                .world_mut()
+                .query_filtered::<(), With<FPSText>>()
+                .query(world.world())
+                .count()
+                > 0;
+            state.fly_mode = world
+                .get_resource()
+                .is_some_and(|mode: &State<MoveMode>| *mode == MoveMode::Fly);
+            for pos in world
+                .world_mut()
+                .query_filtered::<&PosText, Without<bevy::ui_widgets::Checkbox>>()
+                .query(world.world())
+            {
+                match pos {
+                    PosText::Local => state.show_local = true,
+                    PosText::Global => state.show_global = true,
+                    PosText::Offset => state.show_offset = true,
+                    PosText::ChunkId => state.show_chunk_id = true,
+                }
+            }
+            state.show_biome_seeker = world
+                .world_mut()
+                .query_filtered::<(), With<biome_seeker::BiomeInfoText>>()
+                .query(world.world())
+                .count()
+                > 0;
+            state.cap_60 = world
+                .world_mut()
+                .query_filtered::<&Window, With<PrimaryWindow>>()
+                .query(world.world())
+                .iter()
+                .any(|w| w.present_mode == PresentMode::AutoVsync);
+            state.console_open = world
+                .world_mut()
+                .query_filtered::<&Children, With<crate::map::debug::MapDebugConsole>>()
+                .query(world.world())
+                .iter()
+                .any(|c| !c.is_empty());
+        }
+        state
+    }
+}
+
+fn open_debug_menu(mut menu: super::MenuBuilder, state: DebugMenuState) {
+    menu.add_checkbox_with_state("Show FPS", toggle_fps, state.show_fps);
+    menu.add_checkbox_with_state("Cap 60 FPS", toggle_cap, state.cap_60);
+    menu.add_checkbox_with_state("Fly Mode", toggle_fly, state.fly_mode);
+    menu.add_checkbox_with_state(
+        "Open Map Debug Console",
+        crate::map::debug::toggle_console,
+        state.console_open,
+    );
+    let mut pos = menu.vertical();
+    pos.label("Show Cowoadants");
+    let mut pos = pos.horizontal();
+    if state.show_local {
+        pos.add_checkbox_with_ext("Local X,Y,Z", toggle_local, (PosText::Local, Checked));
+    } else {
+        pos.add_checkbox_with_ext("Local X,Y,Z", toggle_local, PosText::Local);
+    }
+    if state.show_global {
+        pos.add_checkbox_with_ext("Global X,Y,Z", toggle_local, (PosText::Global, Checked));
+    } else {
+        pos.add_checkbox_with_ext("Global X,Y,Z", toggle_local, PosText::Global);
+    }
+    if state.show_offset {
+        pos.add_checkbox_with_ext("Offset", toggle_local, (PosText::Offset, Checked));
+    } else {
+        pos.add_checkbox_with_ext("Offset", toggle_local, PosText::Offset);
+    }
+    if state.show_chunk_id {
+        pos.add_checkbox_with_ext("ChunkId", toggle_local, (PosText::ChunkId, Checked));
+    } else {
+        pos.add_checkbox_with_ext("ChunkId", toggle_local, PosText::ChunkId);
+    }
 
     let mut pos = menu.horizontal();
-    pos.add_checkbox("Show Biome Seeker", biome_seeker::toggle_biome_seeker);
+    pos.add_checkbox_with_state(
+        "Show Biome Seeker",
+        biome_seeker::toggle_biome_seeker,
+        state.show_biome_seeker,
+    );
 }
 
 #[derive(Component)]

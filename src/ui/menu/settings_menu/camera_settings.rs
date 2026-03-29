@@ -1,4 +1,7 @@
-use crate::player::{CameraSettings, FlyCameraSettings};
+use crate::{
+    player::{CameraSettings, FlyCameraSettings},
+    ui::menu::builder::SliderSettings,
+};
 
 use super::*;
 
