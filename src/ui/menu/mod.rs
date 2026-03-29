@@ -7,7 +7,7 @@ use bevy::input::common_conditions::input_just_pressed;
 use bevy::{color::palettes::css::*, ecs::world::DeferredWorld, feathers::theme::ThemedText};
 use bevy::{
     ui::Checked,
-    ui_widgets::{observe, SliderPrecision, SliderStep, SliderValue, ValueChange},
+    ui_widgets::{SliderPrecision, SliderStep, SliderValue, ValueChange, observe},
 };
 use feathers::controls::*;
 
@@ -128,7 +128,7 @@ impl MenuAction {
     }
 }
 
-use bevy::ui_widgets::{Activate, AddObserver};
+use bevy::ui_widgets::Activate;
 
 use crate::GameState;
 
@@ -245,17 +245,89 @@ fn clear_stack(mut stack: ResMut<MenuStack>) {
 
 #[derive(SystemParam)]
 pub struct MenuBuilder<'w, 's> {
-    commands: Commands<'w, 's>,
-    root: Single<'w, 's, Entity, With<MenuRoot>>,
-    state: Res<'w, State<MenuId>>,
+    pub commands: Commands<'w, 's>,
+    menu_state: MenuBuilderState,
 }
 
-pub struct SubMenuBuilder<'w, 's, 'a> {
-    builder: &'a mut MenuBuilder<'w, 's>,
-    pub parent: Entity,
+struct MenuBuilderState {
+    root: Entity,
+    open: MenuId,
+}
+
+unsafe impl bevy::ecs::system::ReadOnlySystemParam for MenuBuilderState {}
+
+unsafe impl SystemParam for MenuBuilderState {
+    type Item<'world, 'state> = MenuBuilderState;
+    type State = QueryState<Entity, With<MenuRoot>>;
+    unsafe fn get_param<'world, 'state>(
+        state: &'state mut Self::State,
+        _system_meta: &bevy::ecs::system::SystemMeta,
+        world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell<'world>,
+        _change_tick: bevy::ecs::change_detection::Tick,
+    ) -> Self::Item<'world, 'state> {
+        let root = unsafe {
+            state
+                .query_unchecked(world)
+                .single_inner()
+                .expect("Should fail validation if no root is found, so this should never panic")
+        };
+        let open = unsafe {
+            **world
+                .get_resource::<State<MenuId>>()
+                .expect("No State<MenuId> found")
+        };
+
+        Self { root, open }
+    }
+
+    fn init_state(world: &mut World) -> Self::State {
+        QueryState::new(world)
+    }
+
+    fn init_access(
+        state: &Self::State,
+        system_meta: &mut bevy::ecs::system::SystemMeta,
+        component_access_set: &mut bevy::ecs::query::FilteredAccessSet,
+        world: &mut World,
+    ) {
+        Query::init_access(state, system_meta, component_access_set, world);
+        let index = world.register_resource::<State<MenuId>>();
+        component_access_set.add_unfiltered_resource_read(index);
+    }
+
+    #[inline]
+    unsafe fn validate_param(
+        state: &mut Self::State,
+        _system_meta: &bevy::ecs::system::SystemMeta,
+        world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell,
+    ) -> Result<(), bevy::ecs::system::SystemParamValidationError> {
+        // SAFETY: State ensures that the components it accesses are not mutably accessible elsewhere
+        // and the query is read only.
+        // The caller ensures the world matches the one used in init_state.
+        let query = unsafe { state.query_unchecked(world) };
+        match query.single_inner() {
+            Ok(_) => Ok(()),
+            Err(bevy::ecs::query::QuerySingleError::NoEntities(_)) => Err(
+                bevy::ecs::system::SystemParamValidationError::skipped::<Self>("No MenuRoot Found"),
+            ),
+            Err(bevy::ecs::query::QuerySingleError::MultipleEntities(_)) => Err(
+                bevy::ecs::system::SystemParamValidationError::skipped::<Self>(
+                    "Multiple MenuRoots Found",
+                ),
+            ),
+        }
+    }
 }
 
 impl<'w, 's> MenuBuilder<'w, 's> {
+    pub fn root(&self) -> Entity {
+        self.menu_state.root
+    }
+
+    pub fn current_open(&self) -> MenuId {
+        self.menu_state.open
+    }
+
     #[inline(always)]
     pub fn add_checkbox<B: Bundle, M, I>(&mut self, label: impl Into<String>, on_check: I)
     where
@@ -274,10 +346,11 @@ impl<'w, 's> MenuBuilder<'w, 's> {
         I: IntoObserverSystem<ValueChange<bool>, OB, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
-        self.commands.entity(*self.root).with_child((
+        let close = DespawnOnExit(self.current_open());
+        self.commands.entity(self.root()).with_child((
             checkbox((), Spawn((Text::new(label), ThemedText))),
             observe(on_check),
-            DespawnOnExit(*self.state.get()),
+            close,
             bundle,
         ));
     }
@@ -298,39 +371,22 @@ impl<'w, 's> MenuBuilder<'w, 's> {
             self.add_checkbox_with_ext(label, on_check, ());
         }
     }
-
-    fn commands(&mut self) -> Commands<'_, '_> {
-        self.commands.reborrow()
-    }
 }
 
-impl<'w, 's> MenuBuilder<'w, 's> {
-    pub fn horizontal<'a>(&'a mut self) -> SubMenuBuilder<'w, 's, 'a>
-    where
-        'w: 'a,
-    {
+impl<'w> MenuBuilder<'w, '_> {
+    pub fn horizontal(&mut self) -> MenuBuilder<'w, '_> {
         let new = self
             .commands
-            .spawn((Node::DEFAULT, ChildOf(*self.root)))
+            .spawn((Node::DEFAULT, ChildOf(self.root())))
             .id();
-        self.commands.entity(*self.root).add_child(new);
-        SubMenuBuilder {
-            builder: self,
-            parent: new,
+        self.commands.entity(self.root()).add_child(new);
+        let state = MenuBuilderState {
+            root: new,
+            open: self.menu_state.open,
+        };
+        MenuBuilder {
+            menu_state: state,
+            commands: self.commands.reborrow(),
         }
-    }
-}
-
-impl<'w, 's, 'a> core::ops::Deref for SubMenuBuilder<'w, 's, 'a> {
-    type Target = MenuBuilder<'w, 's>;
-
-    fn deref(&self) -> &Self::Target {
-        self.builder
-    }
-}
-
-impl<'w, 's, 'a> core::ops::DerefMut for SubMenuBuilder<'w, 's, 'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.builder
     }
 }
