@@ -29,11 +29,7 @@ impl FromWorld for MainMenu {
     }
 }
 
-fn open_main_menu(
-    mut commands: Commands,
-    menu: Res<MainMenu>,
-    root: Single<Entity, With<MenuRoot>>,
-) {
+fn open_main_menu(menu: Res<MainMenu>, mut menu_builder: MenuBuilder) {
     let quit = MenuAction::from_commands(&mut commands, |mut quit: MessageWriter<AppExit>| {
         quit.write(AppExit::Success);
     });
