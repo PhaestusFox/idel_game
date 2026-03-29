@@ -1,13 +1,13 @@
 use std::hash::{Hash, Hasher};
 
 use bevy::ecs::lifecycle::HookContext;
-use bevy::ecs::system::SystemId;
+use bevy::ecs::system::{IntoObserverSystem, SystemId, SystemParam};
 use bevy::feathers;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::{color::palettes::css::*, ecs::world::DeferredWorld, feathers::theme::ThemedText};
 use bevy::{
     ui::Checked,
-    ui_widgets::{SliderPrecision, SliderStep, SliderValue, ValueChange, observe},
+    ui_widgets::{observe, SliderPrecision, SliderStep, SliderValue, ValueChange},
 };
 use feathers::controls::*;
 
@@ -128,7 +128,7 @@ impl MenuAction {
     }
 }
 
-use bevy::ui_widgets::Activate;
+use bevy::ui_widgets::{Activate, AddObserver};
 
 use crate::GameState;
 
@@ -241,4 +241,96 @@ fn to_play(mut next: ResMut<NextState<GameState>>) {
 
 fn clear_stack(mut stack: ResMut<MenuStack>) {
     stack.clear();
+}
+
+#[derive(SystemParam)]
+pub struct MenuBuilder<'w, 's> {
+    commands: Commands<'w, 's>,
+    root: Single<'w, 's, Entity, With<MenuRoot>>,
+    state: Res<'w, State<MenuId>>,
+}
+
+pub struct SubMenuBuilder<'w, 's, 'a> {
+    builder: &'a mut MenuBuilder<'w, 's>,
+    pub parent: Entity,
+}
+
+impl<'w, 's> MenuBuilder<'w, 's> {
+    #[inline(always)]
+    pub fn add_checkbox<B: Bundle, M, I>(&mut self, label: impl Into<String>, on_check: I)
+    where
+        I: IntoObserverSystem<ValueChange<bool>, B, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        self.add_checkbox_with_state(label, on_check, false);
+    }
+
+    pub fn add_checkbox_with_ext<B: Bundle, OB: Bundle, M, I>(
+        &mut self,
+        label: impl Into<String>,
+        on_check: I,
+        bundle: B,
+    ) where
+        I: IntoObserverSystem<ValueChange<bool>, OB, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        self.commands.entity(*self.root).with_child((
+            checkbox((), Spawn((Text::new(label), ThemedText))),
+            observe(on_check),
+            DespawnOnExit(*self.state.get()),
+            bundle,
+        ));
+    }
+
+    #[inline(always)]
+    pub fn add_checkbox_with_state<B: Bundle, M, I>(
+        &mut self,
+        label: impl Into<String>,
+        on_check: I,
+        checked: bool,
+    ) where
+        I: IntoObserverSystem<ValueChange<bool>, B, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        if checked {
+            self.add_checkbox_with_ext(label, on_check, Checked);
+        } else {
+            self.add_checkbox_with_ext(label, on_check, ());
+        }
+    }
+
+    fn commands(&mut self) -> Commands<'_, '_> {
+        self.commands.reborrow()
+    }
+}
+
+impl<'w, 's> MenuBuilder<'w, 's> {
+    pub fn horizontal<'a>(&'a mut self) -> SubMenuBuilder<'w, 's, 'a>
+    where
+        'w: 'a,
+    {
+        let new = self
+            .commands
+            .spawn((Node::DEFAULT, ChildOf(*self.root)))
+            .id();
+        self.commands.entity(*self.root).add_child(new);
+        SubMenuBuilder {
+            builder: self,
+            parent: new,
+        }
+    }
+}
+
+impl<'w, 's, 'a> core::ops::Deref for SubMenuBuilder<'w, 's, 'a> {
+    type Target = MenuBuilder<'w, 's>;
+
+    fn deref(&self) -> &Self::Target {
+        self.builder
+    }
+}
+
+impl<'w, 's, 'a> core::ops::DerefMut for SubMenuBuilder<'w, 's, 'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.builder
+    }
 }

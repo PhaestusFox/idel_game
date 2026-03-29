@@ -43,76 +43,19 @@ fn spawn_console(mut commands: Commands) {
     ));
 }
 
-fn open_debug_menu(
-    mut commands: Commands,
-    root: Single<Entity, With<MenuRoot>>,
-    mode: Res<State<MoveMode>>,
-) {
-    let mut root = commands.entity(*root);
-    let clean = DespawnOnExit(DebugMenu::id());
-    root.with_child((
-        checkbox((), Spawn((Text::new("Show FPS"), ThemedText))),
-        observe(toggle_fps),
-        clean.clone(),
-    ));
-    root.with_child((
-        checkbox((), Spawn((Text::new("Cap 60 FPS"), ThemedText))),
-        observe(toggle_cap),
-        clean.clone(),
-    ));
-    let fly = root.with_child((
-        checkbox((), Spawn((Text::new("Fly"), ThemedText))),
-        observe(toggle_fly),
-        clean.clone(),
-    ));
+fn open_debug_menu(mode: Res<State<MoveMode>>, mut menu: super::MenuBuilder) {
+    menu.add_checkbox("Show FPS", toggle_fps);
+    menu.add_checkbox("Cap 60 FPS", toggle_cap);
+    menu.add_checkbox_with_state("Fly Mode", toggle_fly, *mode.get() == MoveMode::Fly);
+    menu.add_checkbox("Open Map Debug Console", crate::map::debug::toggle_console);
+    let mut pos = menu.horizontal();
+    pos.add_checkbox_with_ext("Show Local X,Y,Z", toggle_local, PosText::Local);
+    pos.add_checkbox_with_ext("Show Global X,Y,Z", toggle_local, PosText::Global);
+    pos.add_checkbox_with_ext("Show Offset", toggle_local, PosText::Offset);
+    pos.add_checkbox_with_ext("Show ChunkId", toggle_local, PosText::ChunkId);
 
-    if *mode.get() == MoveMode::Fly {
-        fly.insert(Checked);
-    }
-
-    root.with_child((
-        checkbox((), Spawn((Text::new("Open Map Debug Console"), ThemedText))),
-        observe(crate::map::debug::toggle_console),
-        clean.clone(),
-    ));
-    root.with_child((
-        Node::DEFAULT,
-        children![
-            (
-                checkbox((), Spawn((Text::new("Show Local X,Y,Z"), ThemedText))),
-                observe(toggle_local),
-                PosText::Local,
-                clean.clone(),
-            ),
-            (
-                checkbox((), Spawn((Text::new("Show Global X,Y,Z"), ThemedText))),
-                observe(toggle_local),
-                PosText::Global,
-                clean.clone(),
-            ),
-            (
-                checkbox((), Spawn((Text::new("Show Offset"), ThemedText))),
-                observe(toggle_local),
-                PosText::Offset,
-                clean.clone(),
-            ),
-            (
-                checkbox((), Spawn((Text::new("Show ChunkId"), ThemedText))),
-                observe(toggle_local),
-                PosText::ChunkId,
-                clean.clone(),
-            ),
-        ],
-    ));
-
-    root.with_child((
-        Node::DEFAULT,
-        children![(
-            checkbox((), Spawn((Text::new("Enable Biome Seeker"), ThemedText))),
-            observe(biome_seeker::toggle_biome_seeker),
-            clean.clone(),
-        ),],
-    ));
+    let mut pos = menu.horizontal();
+    pos.add_checkbox("Show Biome Seeker", biome_seeker::toggle_biome_seeker);
 }
 
 #[derive(Component)]

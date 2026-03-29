@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use bevy::ecs::entity;
 use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::system::SystemParam;
 use bevy::ecs::world::DeferredWorld;
