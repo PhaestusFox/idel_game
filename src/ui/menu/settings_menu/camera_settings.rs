@@ -13,23 +13,14 @@ impl Menu for CameraSettingsMenu {
 }
 
 fn open_camera_settings_menu(
-    mut commands: Commands,
-    root: Single<Entity, With<MenuRoot>>,
     settings: Res<CameraSettings>,
     fly_settings: Res<FlyCameraSettings>,
+    mut menu: super::MenuBuilder,
 ) {
-    let dso = DespawnOnExit(CameraSettingsMenu::id());
-    let mut root = commands.entity(*root);
-    root.with_child((
-        slider(
-            SliderProps {
-                value: settings.look_sensitivity,
-                min: 0.01,
-                max: 0.1,
-            },
-            (SliderStep(0.01), SliderPrecision(2)),
-        ),
-        observe(
+    menu.label("Camera Settings");
+    menu.vertical()
+        .label("Sensitivity")
+        .add_slider(
             |change: On<ValueChange<f32>>,
              mut settings: ResMut<CameraSettings>,
              mut commands: Commands| {
@@ -38,57 +29,12 @@ fn open_camera_settings_menu(
                     .entity(change.source)
                     .insert(SliderValue(settings.look_sensitivity));
             },
-        ),
-        dso.clone(),
-    ));
-
-    root.with_child((
-        slider(
-            SliderProps {
-                value: fly_settings.move_speed,
-                min: 5.,
-                max: 20.,
-            },
-            (SliderStep(0.5), SliderPrecision(1)),
-        ),
-        observe(
-            |change: On<ValueChange<f32>>,
-             mut settings: ResMut<FlyCameraSettings>,
-             mut commands: Commands| {
-                settings.move_speed = change.value;
-                commands
-                    .entity(change.source)
-                    .insert(SliderValue(settings.move_speed));
-            },
-        ),
-        dso.clone(),
-    ));
-
-    root.with_child((
-        slider(
-            SliderProps {
-                value: fly_settings.boost_multiplier,
-                min: 0.5,
-                max: 5.0,
-            },
-            (SliderStep(0.5), SliderPrecision(1)),
-        ),
-        observe(
-            |change: On<ValueChange<f32>>,
-             mut settings: ResMut<FlyCameraSettings>,
-             mut commands: Commands| {
-                settings.boost_multiplier = change.value;
-                commands
-                    .entity(change.source)
-                    .insert(SliderValue(settings.boost_multiplier));
-            },
-        ),
-        dso.clone(),
-    ));
-
-    let invert_look_y = root.with_child((
-        dso,
-        observe(
+            SliderSettings::new(settings.look_sensitivity, 0.1, 0.01)
+                .with_precision(2)
+                .with_step(0.01),
+        )
+        .add_checkbox_with_state(
+            "Invert Y",
             |check: On<ValueChange<bool>>,
              mut settings: ResMut<CameraSettings>,
              mut commands: Commands| {
@@ -99,10 +45,31 @@ fn open_camera_settings_menu(
                     commands.entity(check.source).remove::<Checked>();
                 }
             },
-        ),
-        checkbox((), Spawn((Text::new("Invert Look Y"), ThemedText))),
-    ));
-    if settings.invert_look_y {
-        invert_look_y.insert(Checked);
-    }
+            settings.invert_look_y,
+        );
+    menu.vertical().label("Move Speed").add_slider(
+        |change: On<ValueChange<f32>>,
+         mut settings: ResMut<FlyCameraSettings>,
+         mut commands: Commands| {
+            settings.move_speed = change.value;
+            commands
+                .entity(change.source)
+                .insert(SliderValue(settings.move_speed));
+        },
+        SliderSettings::new(5., 20., fly_settings.move_speed).with_precision(1),
+    );
+
+    menu.vertical().label("Boost X").add_slider(
+        |change: On<ValueChange<f32>>,
+         mut settings: ResMut<FlyCameraSettings>,
+         mut commands: Commands| {
+            settings.boost_multiplier = change.value;
+            commands
+                .entity(change.source)
+                .insert(SliderValue(settings.boost_multiplier));
+        },
+        SliderSettings::new(0.5, 5.0, fly_settings.boost_multiplier)
+            .with_precision(1)
+            .with_step(0.5),
+    );
 }
