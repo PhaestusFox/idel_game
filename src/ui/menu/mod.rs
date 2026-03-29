@@ -319,7 +319,7 @@ unsafe impl SystemParam for MenuBuilderState {
     }
 }
 
-impl<'w, 's> MenuBuilder<'w, 's> {
+impl MenuBuilder<'_, '_> {
     pub fn root(&self) -> Entity {
         self.menu_state.root
     }
@@ -373,8 +373,8 @@ impl<'w, 's> MenuBuilder<'w, 's> {
     }
 }
 
-impl<'w> MenuBuilder<'w, '_> {
-    pub fn horizontal(&mut self) -> MenuBuilder<'w, '_> {
+impl MenuBuilder<'_, '_> {
+    pub fn horizontal(&mut self) -> MenuBuilder<'_, '_> {
         let new = self
             .commands
             .spawn((Node::DEFAULT, ChildOf(self.root())))
