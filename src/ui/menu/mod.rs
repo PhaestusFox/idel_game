@@ -319,6 +319,7 @@ unsafe impl SystemParam for MenuBuilderState {
     }
 }
 
+// Checkbox implementation
 impl MenuBuilder<'_, '_> {
     pub fn root(&self) -> Entity {
         self.menu_state.root
@@ -373,13 +374,17 @@ impl MenuBuilder<'_, '_> {
     }
 }
 
+// Layout implementation
 impl MenuBuilder<'_, '_> {
     pub fn horizontal(&mut self) -> MenuBuilder<'_, '_> {
         let new = self
             .commands
-            .spawn((Node::DEFAULT, ChildOf(self.root())))
+            .spawn((
+                Node::DEFAULT,
+                ChildOf(self.root()),
+                DespawnOnExit(self.current_open()),
+            ))
             .id();
-        self.commands.entity(self.root()).add_child(new);
         let state = MenuBuilderState {
             root: new,
             open: self.menu_state.open,
@@ -387,6 +392,103 @@ impl MenuBuilder<'_, '_> {
         MenuBuilder {
             menu_state: state,
             commands: self.commands.reborrow(),
+        }
+    }
+    pub fn vertical(&mut self) -> MenuBuilder<'_, '_> {
+        let new = self
+            .commands
+            .spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..Default::default()
+                },
+                ChildOf(self.root()),
+                DespawnOnExit(self.current_open()),
+            ))
+            .id();
+        let state = MenuBuilderState {
+            root: new,
+            open: self.menu_state.open,
+        };
+        MenuBuilder {
+            menu_state: state,
+            commands: self.commands.reborrow(),
+        }
+    }
+
+    pub fn label(&mut self, text: impl Into<String>) {
+        self.commands.spawn((
+            Text::new(text),
+            ThemedText,
+            ChildOf(self.root()),
+            DespawnOnExit(self.current_open()),
+        ));
+    }
+}
+
+#[derive(Debug)]
+pub struct SliderSettings {
+    min: f32,
+    max: f32,
+    current: f32,
+    step: Option<f32>,
+    precision: Option<i32>,
+}
+
+impl SliderSettings {
+    pub fn new(min: f32, max: f32, current: f32) -> Self {
+        Self {
+            min,
+            max,
+            current,
+            step: None,
+            precision: None,
+        }
+    }
+    pub fn with_step(mut self, step: f32) -> Self {
+        self.step = Some(step);
+        self
+    }
+    pub fn with_precision(mut self, precision: i32) -> Self {
+        self.precision = Some(precision);
+        self
+    }
+}
+
+// Slider implementation
+impl MenuBuilder<'_, '_> {
+    #[inline(always)]
+    pub fn add_slider<B: Bundle, M, I>(&mut self, on_change: I, settings: SliderSettings)
+    where
+        I: IntoObserverSystem<ValueChange<f32>, B, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        self.add_slider_with_ext(on_change, settings, ());
+    }
+    pub fn add_slider_with_ext<B: Bundle, OB: Bundle, M, I>(
+        &mut self,
+        on_change: I,
+        settings: SliderSettings,
+        bundle: B,
+    ) where
+        I: IntoObserverSystem<ValueChange<f32>, OB, M> + Send + Sync + 'static,
+        M: Send + Sync + 'static,
+    {
+        let mut c = self.commands.spawn(slider(
+            SliderProps {
+                value: settings.current,
+                min: settings.min,
+                max: settings.max,
+            },
+            (
+                observe(on_change),
+                bundle,
+                ChildOf(self.root()),
+                SliderPrecision(settings.precision.unwrap_or(1)),
+            ),
+        ));
+        if let Some(step) = settings.step {
+            c.insert(SliderStep(step));
         }
     }
 }
