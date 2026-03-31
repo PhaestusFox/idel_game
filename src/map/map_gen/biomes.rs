@@ -24,7 +24,18 @@ use crate::map::map_gen::map_parameters::*;
 use bevy::prelude::*;
 
 use crate::map::{Block, CHUNK_SIZE};
-pub trait BiomeDescriptor: 'static + Send + Sync + Reflect {
+
+pub trait CloneBiome {
+    fn clone_biome(&self) -> Box<dyn BiomeDescriptor>;
+}
+
+impl<T: 'static + BiomeDescriptor + Clone> CloneBiome for T {
+    fn clone_biome(&self) -> Box<dyn BiomeDescriptor> {
+        Box::new(self.clone())
+    }
+}
+
+pub trait BiomeDescriptor: CloneBiome + 'static + Send + Sync + Reflect {
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
@@ -37,4 +48,10 @@ pub trait BiomeDescriptor: 'static + Send + Sync + Reflect {
         ground: i32,
     ) -> [Block; CHUNK_SIZE];
     fn ground_height(&self, point: IVec2, descriptor: &MapDescriptor) -> f32;
+}
+
+impl Clone for Box<dyn BiomeDescriptor> {
+    fn clone(&self) -> Self {
+        self.clone_biome()
+    }
 }

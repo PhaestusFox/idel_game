@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Reflect)]
+#[derive(Reflect, Clone)]
 pub struct Desert {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
     soil_curve: bevy::math::curve::EasingCurve<f32>,

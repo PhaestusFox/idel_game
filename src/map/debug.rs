@@ -4,12 +4,12 @@ use bevy::{
     feathers::{controls::*, theme::ThemedText},
     prelude::*,
     ui::Checked,
-    ui_widgets::{observe, Activate, SliderPrecision, SliderValue, ValueChange},
+    ui_widgets::{Activate, SliderPrecision, SliderValue, ValueChange, observe},
 };
 
 use crate::map::{
-    map_gen::biomes::{DebugBiome, DebugBiomeType},
     ChunkGenerator, ChunkId, MAP_DEPTH,
+    map_gen::biomes::{DebugBiome, DebugBiomeType},
 };
 
 pub struct MapDebugConsolePlugin;
@@ -338,7 +338,7 @@ fn set_map_descriptor(
 
 fn set_debug_biome(
     change: On<Activate>,
-    map: ResMut<super::ChunkGenerator>,
+    mut map: ResMut<super::ChunkGenerator>,
     button: Query<&DebugBiomeType>,
 ) {
     let Ok(param) = button.get(change.entity) else {
@@ -346,8 +346,8 @@ fn set_debug_biome(
         return;
     };
     println!("Setting debug biome to {:?}", param);
-    let mut map = map.map.write().unwrap();
-    let biomes = map.biomes_mut();
+    let mut map_d = (*map.map).clone();
+    let biomes = map_d.biomes_mut();
 
     for biome in biomes.iter_mut() {
         if biome.name() != "Debug" {
@@ -356,11 +356,12 @@ fn set_debug_biome(
         let b = biome.as_any_mut().downcast_mut::<DebugBiome>().unwrap();
         b.param = *param;
     }
+    map.map = std::sync::Arc::new(map_d);
 }
 
 fn set_debug_scale(
     change: On<ValueChange<f32>>,
-    map: ResMut<super::ChunkGenerator>,
+    mut map: ResMut<super::ChunkGenerator>,
     sliders: Query<&Set>,
     mut commands: Commands,
 ) {
@@ -371,8 +372,8 @@ fn set_debug_scale(
     commands
         .entity(change.source)
         .insert(SliderValue(change.value));
-    let mut map = map.map.write().unwrap();
-    let biomes = map.biomes_mut();
+    let mut map_d = (*map.map).clone();
+    let biomes = map_d.biomes_mut();
     for biome in biomes.iter_mut() {
         if biome.name() != "Debug" {
             continue;
@@ -380,6 +381,7 @@ fn set_debug_scale(
         let b = biome.as_any_mut().downcast_mut::<DebugBiome>().unwrap();
         b.scale = change.value as u32;
     }
+    map.map = std::sync::Arc::new(map_d);
 }
 
 #[derive(Component, PartialEq, Eq)]

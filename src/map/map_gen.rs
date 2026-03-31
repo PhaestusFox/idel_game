@@ -2,6 +2,7 @@ use core::f32;
 
 use super::*;
 use noise::{MultiFractal, NoiseFn};
+
 pub struct MapDescriptor {
     h_noise: noise::Fbm<noise::OpenSimplex>,
     m_noise: noise::Fbm<noise::OpenSimplex>,
@@ -9,6 +10,19 @@ pub struct MapDescriptor {
     biomes: Vec<Box<dyn BiomeDescriptor>>,
     #[cfg(feature = "profile")]
     timings: std::sync::mpsc::Sender<std::time::Duration>,
+}
+
+impl Clone for MapDescriptor {
+    fn clone(&self) -> Self {
+        Self {
+            h_noise: self.h_noise.clone(),
+            m_noise: self.m_noise.clone(),
+            l_noise: self.l_noise.clone(),
+            biomes: self.biomes.clone(),
+            #[cfg(feature = "profile")]
+            timings: self.timings.clone(),
+        }
+    }
 }
 
 #[cfg(not(feature = "profile"))]

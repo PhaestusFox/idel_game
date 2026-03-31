@@ -32,6 +32,7 @@ impl Plugin for MenuPlugin {
             .add_menu::<NoMenu>()
             .init_resource::<MenuStack>()
             .add_menu::<debug::DebugMenu>()
+            .add_menu::<crate::player::ViewMenu>()
             .add_observer(on_press);
         app.add_systems(
             OnEnter(GameState::InMenu),
@@ -131,6 +132,7 @@ impl MenuAction {
 use bevy::ui_widgets::Activate;
 
 use crate::GameState;
+use crate::ui::Anchor;
 
 fn on_press(click: On<Activate>, actions: Query<&MenuAction>, mut commands: Commands) {
     if let Ok(action) = actions.get(click.entity) {
@@ -192,6 +194,7 @@ fn spawn_blank_menu(mut commands: Commands) {
             ..default()
         },
         BackgroundColor(Color::from(GRAY).with_alpha(0.8)),
+        Anchor,
     ));
 }
 
@@ -234,7 +237,7 @@ fn clear_stack(mut stack: ResMut<MenuStack>) {
     stack.clear();
 }
 
-mod builder;
+pub mod builder;
 pub use builder::MenuBuilder;
 
 fn open_menu<M: Menu>()

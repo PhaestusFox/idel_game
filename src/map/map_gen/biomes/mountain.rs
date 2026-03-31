@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Reflect)]
+#[derive(Reflect, Clone)]
 pub struct Hills {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
     soil_curve: bevy::math::curve::EasingCurve<f32>,
@@ -81,7 +81,7 @@ impl BiomeDescriptor for Hills {
     }
 }
 
-#[derive(Reflect)]
+#[derive(Reflect, Clone)]
 pub struct Mountain {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
     soil_curve: bevy::math::curve::EasingCurve<f32>,

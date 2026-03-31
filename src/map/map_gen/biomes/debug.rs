@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Reflect)]
+#[derive(Reflect, Clone)]
 pub struct DebugBiome {
     pub scale: u32,
     pub param: DebugBiomeType,

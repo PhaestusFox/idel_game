@@ -19,4 +19,5 @@ impl Menu for SettingsMenu {
 fn open_settings_menu(mut builder: super::MenuBuilder) {
     builder.label("Settings");
     builder.button("Camera", open_menu::<camera_settings::CameraSettingsMenu>());
+    builder.button("View", open_menu::<crate::player::ViewMenu>());
 }

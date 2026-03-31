@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Reflect)]
+#[derive(Reflect, Clone)]
 pub struct Ocean {
     ground_curve: bevy::math::curve::EasingCurve<f32>,
 }

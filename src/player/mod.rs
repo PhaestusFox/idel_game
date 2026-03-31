@@ -240,7 +240,7 @@ fn update_visible_chunks(
     chunks: Query<(&ChunkBlock, &mut Visibility)>,
 ) {
     for (chunk_id, mut visibility) in chunks {
-        let distance = chunk_id.chebyshev_distance(*offset);
+        let distance = chunk_id.distance(*offset);
         if *view_distance < distance {
             *visibility = Visibility::Hidden;
         } else {
@@ -250,3 +250,6 @@ fn update_visible_chunks(
 }
 
 pub use reycast::Raycast;
+
+mod debug;
+pub use debug::ViewMenu;

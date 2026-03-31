@@ -100,11 +100,10 @@ fn seek_biome_info(
         return;
     };
     let block = block + CHUNK_OFFSET.as_ivec3();
-    let map = descriptor.map.read().unwrap();
-    let out = map.calculate_biomes(block.x, block.z);
-    let biomes = map.biomes();
+    let out = descriptor.map.calculate_biomes(block.x, block.z);
+    let biomes = descriptor.map.biomes();
     let strengths =
-        out.map(|(index, _)| biomes[index].strength(IVec2::new(block.x, block.z), &map));
+        out.map(|(index, _)| biomes[index].strength(IVec2::new(block.x, block.z), &descriptor.map));
     let scaled = vec3(strengths[0], strengths[1], strengths[2]).normalize();
     let correct = scaled[0] + scaled[1] + scaled[2];
     let total_strength = (scaled / correct).to_array();

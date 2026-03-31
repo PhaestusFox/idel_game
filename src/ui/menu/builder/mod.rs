@@ -135,10 +135,10 @@ impl MenuBuilder<'_, '_> {
     }
 }
 
-mod button;
-mod check_box;
-mod label;
-mod slider;
+pub mod button;
+pub mod check_box;
+pub mod label;
+pub mod slider;
 pub use slider::SliderSettings;
 
 use crate::ui::{MenuId, menu::MenuRoot};

@@ -85,7 +85,7 @@ pub struct ChunkGenerator {
     dirty: bool,
     max_chunk_tasks: usize,
     que: IndexSet<ChunkId>,
-    pub map: Arc<RwLock<map_gen::MapDescriptor>>,
+    pub map: Arc<map_gen::MapDescriptor>,
     #[cfg(feature = "profile")]
     timings: (
         std::sync::Mutex<std::sync::mpsc::Receiver<std::time::Duration>>,
@@ -126,9 +126,9 @@ impl FromWorld for ChunkGenerator {
             dummy_image: asset_server.add(ChunkData::dummy_image()),
             max_chunk_tasks: max as usize,
             #[cfg(not(feature = "profile"))]
-            map: Arc::new(RwLock::new(map_gen::MapDescriptor::default())),
+            map: Arc::new(map_gen::MapDescriptor::default()),
             #[cfg(feature = "profile")]
-            map: Arc::new(RwLock::new(map_gen::MapDescriptor::new(0, send))),
+            map: Arc::new(map_gen::MapDescriptor::new(0, send)),
             #[cfg(feature = "profile")]
             timings: (std::sync::Mutex::new(rec), 0.0, 0),
         }
@@ -186,10 +186,7 @@ impl ChunkGenerator {
             self.que.swap_remove(&chunk);
             let descriptor = self.map.clone();
             let ass = asset_server.clone();
-            let task = pool.spawn(async move {
-                let descriptor = descriptor.read().unwrap();
-                ChunkData::generate(chunk, &descriptor, ass)
-            });
+            let task = pool.spawn(async move { ChunkData::generate(chunk, &descriptor, ass) });
             let dis = chunk.as_vec3().distance(Vec3::ZERO);
             let lod = if dis < 16. {
                 LoD::LOD1
@@ -265,19 +262,19 @@ impl ChunkGenerator {
     }
     #[inline(always)]
     pub fn set_octaves(&mut self, octaves: usize) {
-        self.map.write().unwrap().set_octaves(octaves);
+        error!("Changing octaves is not supported yet");
     }
     #[inline(always)]
     pub fn set_frequency(&mut self, frequency: f64) {
-        self.map.write().unwrap().set_frequency(frequency);
+        error!("Changing frequency is not supported yet");
     }
     #[inline(always)]
     pub fn set_lacunarity(&mut self, lacunarity: f64) {
-        self.map.write().unwrap().set_lacunarity(lacunarity);
+        error!("Changing lacunarity is not supported yet");
     }
     #[inline(always)]
     pub fn set_persistence(&mut self, persistence: f64) {
-        self.map.write().unwrap().set_persistence(persistence);
+        error!("Changing persistence is not supported yet");
     }
 
     pub fn cancel_generation(&mut self, id: ChunkId) {
@@ -465,6 +462,11 @@ impl ChunkBlock {
         a.chebyshev_distance(*other)
     }
 
+    pub fn distance(&self, other: ChunkId) -> u32 {
+        let a = IVec2::new(self.0.x * CHUNK_BLOCK_SIZE, self.0.z * CHUNK_BLOCK_SIZE);
+        a.manhattan_distance(IVec2::new(other.x, other.z))
+    }
+
     pub fn world_pos(&self) -> Vec3 {
         let offset = self.0 * CHUNK_BLOCK_SIZE * CHUNK_SIZE as i32;
         (offset).as_vec3()
@@ -561,13 +563,13 @@ pub enum MapError {
 
 /// The distance the world should be generated out too.<br>
 /// This is used to chunks can be generated before they are visible, so the player doesn't see chunks pop in when they move around.
-#[derive(Debug, Resource)]
+#[derive(Debug, Resource, Deref, DerefMut)]
 pub struct GenerationDistance(u32);
 
 impl FromWorld for GenerationDistance {
     fn from_world(world: &mut World) -> Self {
         let view = world.resource::<RenderDistance>();
-        Self(**view + CHUNK_BLOCK_SIZE as u32)
+        Self(**view + 1)
     }
 }
 
@@ -590,11 +592,11 @@ fn check_need_generate(
     max_distance: Res<GenerationDistance>,
     map: Res<MapDescriptor>,
 ) {
-    let n = -IVec3::splat(max_distance.0 as i32) + **offset;
-    let p = IVec3::splat(max_distance.0 as i32) + **offset;
+    let n = IVec3::splat(max_distance.0 as i32) + **offset;
 
-    for x in n.x..=p.x {
-        for z in n.z..=p.z {
+    for x in -n.x..=n.x {
+        let w = max_distance.0 as i32 - x.abs();
+        for z in -w..=w {
             for y in MAP_DEPTH..map.world_size.y + MAP_DEPTH {
                 let id = ChunkId::new(x, y, z);
                 if lookup.contains(&id) {
@@ -606,7 +608,7 @@ fn check_need_generate(
     }
 }
 
-#[derive(Debug, Resource)]
+#[derive(Debug, Resource, Deref, DerefMut)]
 pub struct PersistenceDistance(u32);
 
 impl FromWorld for PersistenceDistance {

@@ -70,6 +70,10 @@ impl ChunkId {
     pub fn offset(&self) -> Vec3 {
         (self.0 * CHUNK_SIZE as i32).as_vec3()
     }
+
+    pub fn distance(&self, other: Self) -> u32 {
+        self.0.manhattan_distance(other.0)
+    }
 }
 
 impl Add for ChunkId {

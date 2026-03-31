@@ -44,3 +44,5 @@ fn spawn_test_widget(mut commands: Commands) {
         Anchor,
     ));
 }
+
+pub use menu::builder::SliderSettings;
