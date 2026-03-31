@@ -24,7 +24,7 @@
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-use crate::map::{Block, CHUNK_SIZE, Chunk, ChunkData, ChunkId, Map};
+use crate::map::{CHUNK_SIZE, ChunkData, ChunkId, Map};
 
 const DEFAULT_RAYCAST_DISTANCE_BLOCKS: u32 = 15;
 const HALF_CHUNK_I32: i32 = CHUNK_SIZE as i32 / 2;

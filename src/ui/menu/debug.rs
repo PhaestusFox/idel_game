@@ -62,19 +62,19 @@ unsafe impl SystemParam for DebugMenuState {
     type Item<'world, 'state> = DebugMenuState;
     type State = ();
     fn init_access(
-        state: &Self::State,
-        system_meta: &mut bevy::ecs::system::SystemMeta,
+        _state: &Self::State,
+        _system_meta: &mut bevy::ecs::system::SystemMeta,
         component_access_set: &mut bevy::ecs::query::FilteredAccessSet,
-        world: &mut World,
+        _world: &mut World,
     ) {
         component_access_set.read_all();
     }
-    fn init_state(world: &mut World) -> Self::State {}
+    fn init_state(_world: &mut World) -> Self::State {}
     unsafe fn get_param<'world, 'state>(
-        state: &'state mut Self::State,
-        system_meta: &bevy::ecs::system::SystemMeta,
+        _state: &'state mut Self::State,
+        _system_meta: &bevy::ecs::system::SystemMeta,
         world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell<'world>,
-        change_tick: bevy::ecs::change_detection::Tick,
+        _change_tick: bevy::ecs::change_detection::Tick,
     ) -> Self::Item<'world, 'state> {
         let mut state = DebugMenuState {
             show_fps: false,

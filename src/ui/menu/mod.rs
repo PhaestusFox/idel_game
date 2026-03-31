@@ -1,13 +1,13 @@
 use std::hash::{Hash, Hasher};
 
 use bevy::ecs::lifecycle::HookContext;
-use bevy::ecs::system::{IntoObserverSystem, SystemId, SystemParam};
+use bevy::ecs::system::{SystemId, SystemParam};
 use bevy::feathers;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::{color::palettes::css::*, ecs::world::DeferredWorld, feathers::theme::ThemedText};
 use bevy::{
     ui::Checked,
-    ui_widgets::{SliderPrecision, SliderStep, SliderValue, ValueChange, observe},
+    ui_widgets::{SliderValue, ValueChange},
 };
 use feathers::controls::*;
 

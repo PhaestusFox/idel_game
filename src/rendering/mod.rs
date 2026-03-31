@@ -1,16 +1,6 @@
 mod voxel_shader;
 
-use bevy::{
-    core_pipeline::core_3d::graph::{Core3d, Node3d},
-    ecs::query::QueryItem,
-    prelude::*,
-    render::{
-        render_graph::{
-            NodeRunError, RenderGraphContext, RenderGraphExt, ViewNode, ViewNodeRunner,
-        },
-        renderer::RenderContext,
-    },
-};
+use bevy::prelude::*;
 
 pub use voxel_shader::*;
 pub struct VoxelRenderingPlugin;

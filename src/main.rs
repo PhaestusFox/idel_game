@@ -1,8 +1,5 @@
 use bevy::{
-    color::palettes::css::RED,
-    image::{ImageSampler, ImageSamplerDescriptor},
-    input::common_conditions::input_just_pressed,
-    prelude::*,
+    image::ImageSamplerDescriptor, input::common_conditions::input_just_pressed, prelude::*,
 };
 use player::PlayerPlugin;
 use ui::UiPlugin;

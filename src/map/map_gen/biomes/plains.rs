@@ -12,8 +12,8 @@ impl Plains {
     pub fn new(min_rainfall: f32) -> Self {
         Self {
             ground_curve: bevy::math::curve::EasingCurve::new(
-                -32.,
-                32.,
+                -8.,
+                16.,
                 bevy::math::curve::easing::EaseFunction::Linear,
             ),
             soil_curve: bevy::math::curve::EasingCurve::new(

@@ -1,5 +1,4 @@
 use core::f32;
-use std::{borrow::Cow, num::NonZero};
 
 use super::*;
 use noise::{MultiFractal, NoiseFn};
@@ -30,9 +29,9 @@ impl MapDescriptor {
             // Box::new(Hills::new(0.0)),
             // Box::new(Hills::new(0.1)),
             // Box::new(Mountain::new(0.3)),
-            Box::new(Mountain::new(0.1)),
+            // Box::new(Mountain::new(0.1)),
             // Box::new(Mountain::new(0.2)),
-            // Box::new(Plains::new(0.1)),
+            Box::new(Plains::new(0.1)),
             // Box::new(Desert::new(0.2)),
             // Box::new(Ocean::new()),
             // Box::new(DebugBiome::new(DebugBiomeType::Height, 1)),

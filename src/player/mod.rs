@@ -10,7 +10,7 @@ use bevy::{
 
 use crate::{
     GameState,
-    map::{CHUNK_SIZE, Chunk, ChunkBlock, ChunkGenerator, ChunkId},
+    map::{CHUNK_SIZE, ChunkBlock, ChunkGenerator, ChunkId},
     physics::Weightless,
 };
 

@@ -1,5 +1,3 @@
-use bevy::prelude::*;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[repr(u8)]
 pub enum Block {

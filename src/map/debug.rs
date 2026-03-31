@@ -4,9 +4,7 @@ use bevy::{
     feathers::{controls::*, theme::ThemedText},
     prelude::*,
     ui::Checked,
-    ui_widgets::{
-        Activate, SliderPrecision, SliderRange, SliderStep, SliderValue, ValueChange, observe,
-    },
+    ui_widgets::{Activate, SliderPrecision, SliderValue, ValueChange, observe},
 };
 
 use crate::map::{
@@ -17,7 +15,7 @@ use crate::map::{
 pub struct MapDebugConsolePlugin;
 
 impl Plugin for MapDebugConsolePlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, _app: &mut App) {}
 }
 
 #[derive(Component)]

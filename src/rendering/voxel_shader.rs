@@ -1,13 +1,8 @@
 //! A shader and a material that uses it.
 
-use bevy::render::render_resource::{PushConstantRange, ShaderStages};
 use bevy::{
     prelude::*, reflect::TypePath, render::render_resource::AsBindGroup, shader::ShaderRef,
 };
-
-use crate::map::ChunkData;
-use bevy::render::render_resource::StorageTextureAccess;
-use bevy::render::render_resource::TextureFormat;
 
 /// This example uses a shader source file from the assets subdirectory
 const SHADER_ASSET_PATH: &str = "shaders/vox.wgsl";

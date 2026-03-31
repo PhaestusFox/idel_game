@@ -158,7 +158,7 @@ impl core::ops::BitAnd<&Grounded> for bool {
 pub struct Weightless;
 
 #[derive(Component, Default, Reflect, Deref, DerefMut)]
-#[require(Grounded)]
+#[require(Grounded = Grounded(false))]
 pub struct Velocity(Vec3);
 
 fn update_grounded(

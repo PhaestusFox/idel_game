@@ -1,9 +1,4 @@
-use std::time;
-
-use bevy::{
-    light::{FogVolume, VolumetricLight},
-    pbr::DefaultOpaqueRendererMethod,
-};
+use bevy::{light::VolumetricLight, pbr::DefaultOpaqueRendererMethod};
 
 use super::*;
 pub fn plugin(app: &mut App) {

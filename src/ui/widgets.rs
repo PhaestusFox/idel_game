@@ -1,9 +1,8 @@
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
-    input::mouse::{AccumulatedMouseMotion, MouseMotion},
     prelude::*,
     ui_widgets::observe,
-    window::{PrimaryWindow, WindowEvent},
+    window::PrimaryWindow,
 };
 
 pub struct WidgetPlugin;

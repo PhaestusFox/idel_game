@@ -192,8 +192,6 @@ pub fn make_baked_mesh() -> Mesh {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut indices = Vec::new();
-    const CORRECTION_SCALE: f32 = CHUNK_SIZE as f32;
-    const OFFSET: f32 = 0.01;
 
     for z in 0..CHUNK_SIZE {
         let o = (-1f64 + (STEP * z as f64)) as f32;

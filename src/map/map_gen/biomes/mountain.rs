@@ -121,8 +121,8 @@ impl BiomeDescriptor for Mountain {
         "Mountain"
     }
     fn strength(&self, point: IVec2, noise: &MapDescriptor) -> f32 {
-        let g = noise.get::<GroundHeight2>(point);
-        ((g - self.th) / (1. - self.th)) * 10.
+        let g = noise.get::<GroundHeight>(point);
+        (g - self.th) / (1. - self.th)
     }
     fn priority(&self, point: IVec2, descriptor: &MapDescriptor) -> u8 {
         let g = descriptor.get::<GroundHeight2>(point);

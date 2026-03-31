@@ -2,8 +2,6 @@ use crate::physics::Weightless;
 
 use super::*;
 
-use bevy::prelude::*;
-
 pub struct FlyPlugin;
 
 impl Plugin for FlyPlugin {
