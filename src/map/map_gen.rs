@@ -6,7 +6,7 @@ pub struct MapDescriptor {
     h_noise: noise::Fbm<noise::OpenSimplex>,
     m_noise: noise::Fbm<noise::OpenSimplex>,
     l_noise: noise::Fbm<noise::OpenSimplex>,
-    biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>>,
+    biomes: Vec<Box<dyn BiomeDescriptor>>,
     #[cfg(feature = "profile")]
     timings: std::sync::mpsc::Sender<std::time::Duration>,
 }
@@ -23,7 +23,7 @@ impl MapDescriptor {
         seed: u32,
         #[cfg(feature = "profile")] timings: std::sync::mpsc::Sender<std::time::Duration>,
     ) -> Self {
-        let biomes: RwLock<Vec<Box<dyn BiomeDescriptor>>> = RwLock::new(vec![
+        let biomes: Vec<Box<dyn BiomeDescriptor>> = vec![
             // Box::new(Badland::new()),
             // Box::new(Hills::new(-0.1)),
             // Box::new(Hills::new(0.0)),
@@ -39,7 +39,7 @@ impl MapDescriptor {
             // Box::new(Plains::new(0.2)),
             // Box::new(Desert::new(0.2)),
             // Box::new(Desert::new(-0.2)),
-        ]);
+        ];
         let mut h_noise = noise::Fbm::new(seed);
         let mut m_noise = noise::Fbm::new(seed + 0x5068);
         let mut l_noise = noise::Fbm::new(seed + 0x6f78);
@@ -77,12 +77,12 @@ impl MapDescriptor {
         self.h_noise = n.set_persistence(persistence);
     }
 
-    pub fn biomes_mut(&mut self) -> &mut Vec<Box<dyn BiomeDescriptor>> {
-        self.biomes.get_mut().unwrap()
+    pub fn biomes_mut(&mut self) -> &mut [Box<dyn BiomeDescriptor>] {
+        &mut self.biomes
     }
 
-    pub fn biomes(&self) -> std::sync::RwLockReadGuard<'_, Vec<Box<dyn BiomeDescriptor>>> {
-        self.biomes.read().unwrap()
+    pub fn biomes(&self) -> &[Box<dyn BiomeDescriptor>] {
+        &self.biomes
     }
 }
 
@@ -142,8 +142,7 @@ impl MapDescriptor {
         for x in 0..CHUNK_SIZE as i32 {
             for z in 0..CHUNK_SIZE as i32 {
                 let (b, ground_level) = self.calculate_biome(offset.x + x, offset.z + z);
-                let biomes = self.biomes.read().unwrap();
-                let biome = &biomes[b];
+                let biome = self.biomes[b].as_ref();
                 let origin = IVec3::new(x, 0, z) + offset;
                 for (y, block) in biome
                     .generate_column(origin, self, ground_level)
@@ -166,10 +165,9 @@ impl MapDescriptor {
 
     pub fn calculate_biome(&self, x: i32, z: i32) -> (usize, i32) {
         let top3 = self.calculate_biomes(x, z);
-        let biomes = self.biomes.read().unwrap();
         let mut out = [(0., 0.); 3];
         for (i, (index, _)) in top3.into_iter().enumerate() {
-            let biome = &biomes[index];
+            let biome = self.biomes[index].as_ref();
             let strength = biome.strength(IVec2::new(x, z), self);
             out[i] = (strength, biome.ground_height(IVec2::new(x, z), self));
         }
@@ -185,9 +183,8 @@ impl MapDescriptor {
 
     pub fn calculate_biomes(&self, x: i32, z: i32) -> [(usize, u8); 3] {
         let point = IVec2::new(x, z);
-        let biomes = self.biomes.read().unwrap();
         let mut top3 = [(0, 0); 3];
-        for (index, biome) in biomes.iter().enumerate() {
+        for (index, biome) in self.biomes.iter().enumerate() {
             let p = biome.priority(point, self);
             if p != 0 {
                 if p > top3[0].1 {

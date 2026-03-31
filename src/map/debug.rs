@@ -4,12 +4,12 @@ use bevy::{
     feathers::{controls::*, theme::ThemedText},
     prelude::*,
     ui::Checked,
-    ui_widgets::{Activate, SliderPrecision, SliderValue, ValueChange, observe},
+    ui_widgets::{observe, Activate, SliderPrecision, SliderValue, ValueChange},
 };
 
 use crate::map::{
-    ChunkGenerator, ChunkId, MAP_DEPTH,
     map_gen::biomes::{DebugBiome, DebugBiomeType},
+    ChunkGenerator, ChunkId, MAP_DEPTH,
 };
 
 pub struct MapDebugConsolePlugin;
@@ -427,7 +427,6 @@ fn update_gen_time(
     mut gen_time: ResMut<super::ChunkGenerator>,
     mut text: Populated<(&mut Text, &GenTimeText)>,
 ) {
-    println!("Updating gen time");
     let r = gen_time.timings.0.lock().unwrap().try_recv();
     if let Ok(r) = r {
         gen_time.timings.1 += r.as_secs_f32();
