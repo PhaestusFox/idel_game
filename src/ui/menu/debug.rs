@@ -142,7 +142,7 @@ fn open_debug_menu(mut menu: super::MenuBuilder, state: DebugMenuState) {
         state.console_open,
     );
     let mut pos = menu.vertical();
-    pos.label("Show Cowoadants");
+    pos.label("Show Coordinates");
     let mut pos = pos.horizontal();
     if state.show_local {
         pos.add_checkbox_with_ext("Local X,Y,Z", toggle_local, (PosText::Local, Checked));
@@ -165,12 +165,12 @@ fn open_debug_menu(mut menu: super::MenuBuilder, state: DebugMenuState) {
         pos.add_checkbox_with_ext("ChunkId", toggle_local, PosText::ChunkId);
     }
 
-    let mut pos = menu.horizontal();
-    pos.add_checkbox_with_state(
+    menu.add_checkbox_with_state(
         "Show Biome Seeker",
         biome_seeker::toggle_biome_seeker,
         state.show_biome_seeker,
     );
+    menu.add_checkbox("Show Chunk GenTime", crate::map::debug::toggle_gen_time);
 }
 
 #[derive(Component)]

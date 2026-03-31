@@ -24,7 +24,6 @@ impl Plugin for MapPlugin {
         app.init_resource::<MapDescriptor>();
         app.init_resource::<GenerationDistance>();
 
-        #[cfg(debug_assertions)]
         app.add_plugins(debug::MapDebugConsolePlugin);
 
         app.add_systems(
@@ -389,7 +388,7 @@ fn update_mesh_generator(
 mod blocks;
 pub use blocks::Block;
 
-fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>>) {
+pub fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>>) {
     for (chunk, mut visibility) in &mut chunks {
         if chunk.lod_hint == LoD::Empty {
             *visibility = Visibility::Hidden;

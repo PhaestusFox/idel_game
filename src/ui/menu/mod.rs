@@ -11,7 +11,7 @@ use bevy::{
 };
 use feathers::controls::*;
 
-mod debug;
+pub mod debug;
 mod esc_menu;
 mod main;
 mod settings_menu;

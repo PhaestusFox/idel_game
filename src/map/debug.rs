@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, fmt::Debug};
 
 use bevy::{
     feathers::{controls::*, theme::ThemedText},
@@ -15,7 +15,10 @@ use crate::map::{
 pub struct MapDebugConsolePlugin;
 
 impl Plugin for MapDebugConsolePlugin {
-    fn build(&self, _app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        #[cfg(feature = "profile")]
+        app.add_systems(Update, update_gen_time);
+    }
 }
 
 #[derive(Component)]
@@ -376,5 +379,74 @@ fn set_debug_scale(
         }
         let b = biome.as_any_mut().downcast_mut::<DebugBiome>().unwrap();
         b.scale = change.value as u32;
+    }
+}
+
+#[derive(Component, PartialEq, Eq)]
+pub enum GenTimeText {
+    Root,
+    Random,
+    Average,
+}
+
+pub fn toggle_gen_time(
+    check: On<ValueChange<bool>>,
+    mut commands: Commands,
+    console: Single<Entity, With<crate::ui::DebugConsole>>,
+    open: Query<Entity, (With<GenTimeText>, Without<Text>)>,
+) {
+    if check.value {
+        commands.entity(check.source).insert(Checked);
+        commands.spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                ..Default::default()
+            },
+            GenTimeText::Root,
+            ChildOf(*console),
+            children![
+                (Text::new("Chunk Gen Time:"), ThemedText),
+                (
+                    Text::new("Random Chunk: N/A"),
+                    GenTimeText::Random,
+                    ThemedText
+                ),
+                (Text::new("Average: N/A"), GenTimeText::Average, ThemedText)
+            ],
+        ));
+    } else {
+        commands.entity(check.source).remove::<Checked>();
+        for e in &open {
+            commands.entity(e).despawn();
+        }
+    }
+}
+
+#[cfg(feature = "profile")]
+fn update_gen_time(
+    mut gen_time: ResMut<super::ChunkGenerator>,
+    mut text: Populated<(&mut Text, &GenTimeText)>,
+) {
+    println!("Updating gen time");
+    let r = gen_time.timings.0.lock().unwrap().try_recv();
+    if let Ok(r) = r {
+        gen_time.timings.1 += r.as_secs_f32();
+        gen_time.timings.2 += 1;
+    };
+    for (mut text, pos) in &mut text {
+        match pos {
+            GenTimeText::Random => {
+                if let Ok(r) = r {
+                    text.0 = format!("Random Chunk: {} ms", r.as_millis());
+                }
+            }
+            GenTimeText::Average => {
+                if gen_time.timings.2 > 0 {
+                    let avg = gen_time.timings.1 / gen_time.timings.2 as f32;
+                    text.0 = format!("Average: {} ms", avg * 1000.);
+                }
+            }
+            GenTimeText::Root => {}
+        }
     }
 }

@@ -28,6 +28,7 @@ impl Plugin for UiPlugin {
 }
 
 mod widgets;
+pub use menu::debug::DebugConsole;
 pub use widgets::*;
 
 fn spawn_test_widget(mut commands: Commands) {
