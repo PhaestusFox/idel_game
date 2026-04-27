@@ -77,71 +77,73 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
 #endif
 #endif
 
-#ifdef VERTEX_POSITIONS
-    out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(vertex.position, 1.0));
-    out.position = position_world_to_clip(out.world_position.xyz);
-#endif
 
-    let pos = resolve_pos(vertex_no_morph.position, chunk_size);
+let pos = resolve_pos(vertex_no_morph.position, chunk_size);
 
+// If chunk is solid, only render faces that are on the edge of the chunk.
+if lod == 0xFFFFFFFF {
+    let x = out.world_normal.x != 0. && (pos.x == 0 || pos.x == u32(chunk_size));
+    let y = out.world_normal.y != 0. && (pos.y == 0 || pos.y == u32(chunk_size));
+    let z = out.world_normal.z != 0. && (pos.z == 0 || pos.z == u32(chunk_size));   
+    if !(x || y || z) {
+        out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
+        return out;
+    }
+} else {
     // If chunk is standard
-    if lod == 1 {
-        var nx = 0u;
-        var nz = 0u;
-        var ny = 0u;
-        if out.world_normal.y != 0. {
-            if pos.x == 0 && pos.z == 0 {
-                nx = chunk_size;
-                ny = u32(pos.y);
-                nz = chunk_size;
-                for (var x = 0u; x < chunk_size; x++) {
-                    for (var z = 0u; z < chunk_size; z++) {
-                        let block = get_block(vec3u(x, ny, z));
-                        if block != 0u {
-                            nx = min(x, nx);
-                            nz = min(z, nz);
-                        }
-                    }
-                }
-                if nx == chunk_size || nz == chunk_size {
-                    out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
-                    return out;
-                } else {
-                    out.world_position.x += f32(nx);
-                    out.world_position.z += f32(nz);
-                }
-            } else if pos.x == 0 && pos.z == chunk_size {
-                nx = chunk_size;
-                ny = u32(pos.y);
-                nz = 0;
-                for (var x = 0u; x < chunk_size; x++) {
-                    for (var z = 0u; z < chunk_size; z++) {
-                        let block = get_block(vec3u(x, ny, z));
-                        if block != 0u {
-                            nx = min(x, nx);
-                            nz = max(z, nz);
-                        }
-                    }
-                }
-                out.world_position.x += f32(nx);
-                out.world_position.z += f32(nz);
-            }
-        }
-        if out.world_normal.y != 1. {
-            out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
+    let min_x = (lod & 0x1F);
+    let max_x = ((lod >> 15) & 0x1F << 1);
+    let min_y = ((lod >> 5) & 0x1F);
+    let max_y = ((lod >> 20) & 0x1F) << 1;
+    let min_z = ((lod >> 10) & 0x1F);
+    let max_z = ((lod >> 25) & 0x1F) << 1;
+    
+    let x = out.world_normal.x != 0.;
+    let y = out.world_normal.y != 0.;
+    let z = out.world_normal.z != 0.;
+    if x && (pos.x < (min_x + 1) || pos.x > (max_x + 1))
+    || y && (pos.y < (min_y + 1) || pos.y > (max_y + 1))
+    || z && (pos.z < (min_z + 1) || pos.z > (max_z + 1)) {
+        // out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
+        // return out;
+    }
+    if x {
+        if pos.y == 0 {
+           vertex.position.y = f32(min_y) * recp_chunk_size * 2.0 - 1.0;
         } else {
-            out.position = position_world_to_clip(out.world_position.xyz);
+            vertex.position.y = f32(max_y) * recp_chunk_size * 2.0 - 1.0;
+        }
+        if pos.z == 0 {
+            vertex.position.z = f32(min_z) * recp_chunk_size * 2.0 - 1.0;
+        } else {
+            vertex.position.z = f32(max_z) * recp_chunk_size * 2.0 - 1.0;
+        }
+    } else if y {
+        if pos.x == 0 {
+           vertex.position.x = f32(min_x) * recp_chunk_size * 2.0 - 1.0;
+        } else {
+            vertex.position.x = f32(max_x) * recp_chunk_size * 2.0 - 1.0;
+        }
+        if pos.z == 0 {
+            vertex.position.z = f32(min_z) * recp_chunk_size * 2.0 - 1.0;
+        } else {
+            vertex.position.z = f32(max_z) * recp_chunk_size * 2.0 - 1.0;
+        }
+    } else if z {
+        if pos.x == 0 {
+           vertex.position.x = f32(min_x) * recp_chunk_size * 2.0 - 1.0;
+        } else {
+            vertex.position.x = f32(max_x) * recp_chunk_size * 2.0 - 1.0;
+        }
+        if pos.y == 0 {
+            vertex.position.y = f32(min_y) * recp_chunk_size * 2.0 - 1.0;
+        } else {
+            vertex.position.y = f32(max_y) * recp_chunk_size * 2.0 - 1.0;
         }
     }
-    // If chunk is solid, only render faces that are on the edge of the chunk.
-    else if lod == 1 << 31 {
-        let x = out.world_normal.x != 0. && (pos.x == 0 || pos.x == u32(chunk_size));
-        let y = out.world_normal.y != 0. && (pos.y == 0 || pos.y == u32(chunk_size));
-        let z = out.world_normal.z != 0. && (pos.z == 0 || pos.z == u32(chunk_size));   
-        if !(x || y || z) {
-            out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
-        }
-    }
+}
+out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(vertex.position, 1.0));
+out.position = position_world_to_clip(out.world_position.xyz);
 
 #ifdef VERTEX_UVS_A
     out.uv = vertex.uv;

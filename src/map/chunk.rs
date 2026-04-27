@@ -167,12 +167,12 @@ impl ChunkData {
     pub fn lod_hint(&self) -> LoD {
         let solid = !self.blocks.iter().any(|b| *b == Block::Void);
         let empty = !self.blocks.iter().any(|b| *b != Block::Void);
-        let mut min_x = CHUNK_SIZE;
-        let mut min_y = CHUNK_SIZE;
-        let mut min_z = CHUNK_SIZE;
-        let mut max_x = 0;
-        let mut max_y = 0;
-        let mut max_z = 0;
+        let mut min_x = 31;
+        let mut min_y = 31;
+        let mut min_z = 31;
+        let mut max_x = 2;
+        let mut max_y = 2;
+        let mut max_z = 2;
         for z in 0..CHUNK_SIZE as u8 {
             for y in 0..CHUNK_SIZE as u8 {
                 for x in 0..CHUNK_SIZE as u8 {
@@ -194,9 +194,12 @@ impl ChunkData {
         } else if empty {
             LoD::EMPTY
         } else {
-            let mut out = min_x >> 1;
-            out |= (min_y >> 1) << 10;
-            out |= (min_z >> 1) << 15;
+            let mut out = min_x | 1 << 31;
+            out |= min_y << 5;
+            out |= min_z << 10;
+            out |= (max_x >> 1) << 15;
+            out |= (max_y >> 1) << 20;
+            out |= (max_z >> 1) << 25;
             LoD(out as u32)
         }
     }
