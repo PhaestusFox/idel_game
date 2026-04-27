@@ -5,7 +5,7 @@ const ERROR_COLOR: vec4<f32> = vec4<f32>(1.0, 0.0, 1.0,1.);
     view_bindings, pbr_functions};
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
-@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: f32;
+@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: u32;
 @group(#{MATERIAL_BIND_GROUP}) @binding(4) var myTexture: texture_storage_3d<rgba8uint, read>;
 
 @group(0) @binding(1) var<uniform> lights: Lights;
@@ -72,6 +72,7 @@ fn get_block(pos: vec3u) -> u32 {
     let index = (pos.z * u32(chunk_size) * u32(chunk_size) + pos.y * u32(chunk_size) + pos.x);
     let block_data = textureLoad(myTexture, pos);
     return block_data.x;
+    // return pos.x;
     // switch (pos.x % 4u) {
     //     case 0u: {
     //         return block_data.x;

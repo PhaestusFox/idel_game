@@ -6,6 +6,7 @@ use bevy::{
 
 /// This example uses a shader source file from the assets subdirectory
 const SHADER_ASSET_PATH: &str = "shaders/vox.wgsl";
+const SHADER_VERTEX_PATH: &str = "shaders/vertex.wgsl";
 
 // This struct defines the data that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -15,8 +16,8 @@ pub struct CustomMaterial {
     pub color_texture: Option<Handle<Image>>,
     pub alpha_mode: AlphaMode,
     #[uniform(3)]
-    pub lod: f32,
-    #[storage_texture(4, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment))]
+    pub lod: u32,
+    #[storage_texture(4, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment, vertex))]
     pub data: Handle<Image>,
 }
 
@@ -32,7 +33,7 @@ impl Material for CustomMaterial {
     }
 
     fn vertex_shader() -> ShaderRef {
-        ShaderRef::Default
+        SHADER_VERTEX_PATH.into()
     }
 
     fn enable_prepass() -> bool {

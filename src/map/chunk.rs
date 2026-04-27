@@ -167,12 +167,37 @@ impl ChunkData {
     pub fn lod_hint(&self) -> LoD {
         let solid = !self.blocks.iter().any(|b| *b == Block::Void);
         let empty = !self.blocks.iter().any(|b| *b != Block::Void);
+        let mut min_x = CHUNK_SIZE;
+        let mut min_y = CHUNK_SIZE;
+        let mut min_z = CHUNK_SIZE;
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut max_z = 0;
+        for z in 0..CHUNK_SIZE as u8 {
+            for y in 0..CHUNK_SIZE as u8 {
+                for x in 0..CHUNK_SIZE as u8 {
+                    let block = self.get_block(x, y, z);
+                    if block != Block::Void {
+                        min_x = min_x.min(x as usize);
+                        min_y = min_y.min(y as usize);
+                        min_z = min_z.min(z as usize);
+                        max_x = max_x.max(x as usize);
+                        max_y = max_y.max(y as usize);
+                        max_z = max_z.max(z as usize);
+                    }
+                }
+            }
+        }
+
         if solid {
-            LoD::Solid
+            LoD::SOLID
         } else if empty {
-            LoD::Empty
+            LoD::EMPTY
         } else {
-            LoD::LOD1
+            let mut out = min_x >> 1;
+            out |= (min_y >> 1) << 10;
+            out |= (min_z >> 1) << 15;
+            LoD(out as u32)
         }
     }
 }
@@ -311,7 +336,7 @@ pub fn make_baked_mesh() -> Mesh {
 }
 
 pub fn make_baked_mesh_lod(lod: LoD) -> Mesh {
-    if lod == LoD::LOD1 {
+    if lod == LoD(1) {
         return make_baked_mesh();
     }
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());

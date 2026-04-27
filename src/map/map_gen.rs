@@ -40,7 +40,7 @@ impl MapDescriptor {
         let biomes: Vec<Box<dyn BiomeDescriptor>> = vec![
             // Box::new(Badland::new()),
             // Box::new(Hills::new(-0.1)),
-            // Box::new(Hills::new(0.0)),
+            Box::new(Hills::new(0.0)),
             // Box::new(Hills::new(0.1)),
             // Box::new(Mountain::new(0.3)),
             // Box::new(Mountain::new(0.1)),

@@ -105,10 +105,10 @@ impl FromWorld for ChunkGenerator {
             .id();
         let asset_server = world.resource::<AssetServer>();
         let mut lods = HashMap::new();
-        for lod in [LoD::LOD2, LoD::LOD4, LoD::LOD8, LoD::LOD16] {
+        for lod in [LoD(2), LoD(4), LoD(8), LoD(16)] {
             lods.insert(lod, asset_server.add(make_baked_mesh_lod(lod)));
         }
-        lods.insert(LoD::Solid, asset_server.add(make_solid_mesh()));
+        lods.insert(LoD(u32::MAX), asset_server.add(make_solid_mesh()));
 
         #[cfg(feature = "profile")]
         let (send, rec) = std::sync::mpsc::channel();
@@ -136,26 +136,24 @@ impl FromWorld for ChunkGenerator {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum LoD {
-    LOD1,
-    LOD2,
-    LOD4,
-    LOD8,
-    LOD16,
-    Solid,
-    Empty,
-}
+pub struct LoD(pub u32);
 impl LoD {
+    pub const SOLID: Self = Self(u32::MAX);
+    pub const EMPTY: Self = Self(0);
+
     fn step(&self) -> f32 {
-        match self {
-            LoD::LOD1 => 1.,
-            LoD::LOD2 => 2.,
-            LoD::LOD4 => 4.,
-            LoD::LOD8 => 8.,
-            LoD::LOD16 => 16.,
-            _ => 1.,
+        if self.0 == Self::SOLID.0 {
+            CHUNK_SIZE as f32
+        } else if self.0 == Self::EMPTY.0 {
+            0.
+        } else {
+            1.
         }
     }
+
+    fn id(&self) -> u32 {
+        self.0
+    } 
 }
 
 impl ChunkGenerator {
@@ -188,24 +186,13 @@ impl ChunkGenerator {
             let ass = asset_server.clone();
             let task = pool.spawn(async move { ChunkData::generate(chunk, &descriptor, ass) });
             let dis = chunk.as_vec3().distance(Vec3::ZERO);
-            let lod = if dis < 16. {
-                LoD::LOD1
-            } else if dis < 32. {
-                LoD::LOD2
-            } else if dis < 48. {
-                LoD::LOD4
-            } else if dis < 64. {
-                LoD::LOD8
-            } else {
-                LoD::LOD16
-            };
-            let mesh = self.get_mesh(LoD::LOD1);
+            let mesh = self.get_mesh(LoD(1));
             if lookup.get(&chunk).is_none() {
                 commands.spawn((
                     Name::new(format!("Chunk ({})", chunk)),
                     Mesh3d(mesh),
                     MeshMaterial3d(asset_server.add(crate::rendering::CustomMaterial {
-                        lod: lod.step(),
+                        lod: u32::MAX,
                         color_texture: Some(colors.clone()),
                         alpha_mode: AlphaMode::Opaque,
                         data: self.dummy_image.clone(),
@@ -323,10 +310,11 @@ fn update_mesh_generator(
                 lod_hint: data.lod_hint(),
                 data: asset_server.add(data),
             };
+            material.lod = chunk.lod_hint.id();
             let mut chunk_entity = commands.entity(entity);
             match chunk.lod_hint {
                 // LoD::Solid => chunk_entity.insert(Mesh3d(mesh_generator.get_mesh(LoD::Solid))),
-                LoD::Empty => chunk_entity.insert(Visibility::Hidden),
+                LoD(0) => chunk_entity.insert(Visibility::Hidden),
                 _ => &mut chunk_entity,
             }
             .insert(chunk);
@@ -387,7 +375,7 @@ pub use blocks::Block;
 
 pub fn hide_empty_chunks(mut chunks: Query<(&Chunk, &mut Visibility), Changed<Chunk>>) {
     for (chunk, mut visibility) in &mut chunks {
-        if chunk.lod_hint == LoD::Empty {
+        if chunk.lod_hint == LoD(0) {
             *visibility = Visibility::Hidden;
         } else {
             *visibility = Visibility::Inherited;
