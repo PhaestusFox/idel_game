@@ -24,6 +24,12 @@ impl Plugin for UiPlugin {
                 KeyCode::F11,
             )),
         );
+        app.add_systems(
+            Update,
+            update_test_widget.run_if(bevy::input::common_conditions::input_just_pressed(
+                KeyCode::F12,
+            )),
+        );
     }
 }
 
@@ -32,17 +38,18 @@ pub use menu::debug::DebugConsole;
 pub use widgets::*;
 
 fn spawn_test_widget(mut commands: Commands) {
+    let c: EasingCurve<f32> = EasingCurve::new(0., 1., EaseFunction::ElasticOut);
     commands.spawn((
         Name::new("Test Widget"),
-        Node {
-            width: Val::Px(200.),
-            height: Val::Px(200.),
-            position_type: PositionType::Absolute,
-            ..Default::default()
-        },
-        BackgroundColor(Color::WHITE),
-        Anchor,
+        widgets::ReflectWidgetRoot(Box::new(c)),
     ));
+}
+
+fn update_test_widget(query: Query<(Entity, &ReflectWidgetRoot)>, mut commands: Commands) {
+    for (root, _) in query.iter() {
+        let c: EasingCurve<f32> = EasingCurve::new(0., 1., EaseFunction::ExponentialInOut);
+        commands.entity(root).insert(ReflectWidgetRoot(Box::new(c)));
+    }
 }
 
 pub use menu::builder::SliderSettings;

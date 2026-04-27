@@ -10,6 +10,7 @@ pub struct WidgetPlugin;
 impl Plugin for WidgetPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, anchor_drag);
+        app.add_plugins(reflect::ReflectWidgets);    
     }
 }
 
@@ -120,3 +121,6 @@ fn anchor_end_drag(trigger: On<Pointer<DragEnd>>, mut hooks: Query<&mut AnchorHo
     }
     hook.dragging = None;
 }
+
+mod reflect;
+pub use reflect::ReflectWidgetRoot;

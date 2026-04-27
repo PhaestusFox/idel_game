@@ -614,7 +614,9 @@ pub struct PersistenceDistance(u32);
 impl FromWorld for PersistenceDistance {
     fn from_world(world: &mut World) -> Self {
         let view = world.resource::<GenerationDistance>();
-        Self(view.0 + CHUNK_BLOCK_SIZE as u32)
+        // Self(view.0 + CHUNK_BLOCK_SIZE as u32)
+        // TODO set back to normal
+        Self(1000)
     }
 }
 

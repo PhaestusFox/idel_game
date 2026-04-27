@@ -174,6 +174,7 @@ fn open_console(mut commands: Commands) {
                     )
                 ],
             ),
+            // debug biome
             (
                 Node {
                     flex_wrap: FlexWrap::Wrap,
@@ -231,6 +232,17 @@ fn open_console(mut commands: Commands) {
                     Set::Scale,
                     observe(set_debug_scale)
                 )
+            ),
+            // test biome
+            (
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..Default::default()
+                },
+                BiomeSetting(0),
+                children![
+
+                ]
             )
         ],
     ));
@@ -451,3 +463,7 @@ fn update_gen_time(
         }
     }
 }
+
+
+#[derive(Component)]
+pub struct BiomeSetting(usize);
