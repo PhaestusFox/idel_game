@@ -218,7 +218,7 @@ pub struct RenderDistance(u32);
 
 impl Default for RenderDistance {
     fn default() -> Self {
-        Self(15)
+        Self(32)
     }
 }
 

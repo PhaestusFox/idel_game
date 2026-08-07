@@ -40,6 +40,8 @@ fn morph_vertex(vertex_in: Vertex, instance_index: u32) -> Vertex {
 }
 #endif
 
+// order the vextexs in the pre baked mesh so things like lod can specify something like skip all odd vertexs and still render correctly.
+
 @vertex
 fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
     var out: VertexOutput;
@@ -80,6 +82,22 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
 
 let pos = resolve_pos(vertex_no_morph.position, chunk_size);
 
+let tech = lod & 0xF0000000 >> 28;
+
+switch (tech) {
+    case 0x0: {
+        // standard chunk
+    }
+    case 0x1: {
+        // solid chunk
+    }
+    default: {
+        // invalid chunk
+        out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
+        return out;
+    }
+}
+
 // If chunk is solid, only render faces that are on the edge of the chunk.
 if lod == 0xFFFFFFFF {
     let x = out.world_normal.x != 0. && (pos.x == 0 || pos.x == u32(chunk_size));
@@ -89,21 +107,25 @@ if lod == 0xFFFFFFFF {
         out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
         return out;
     }
-} else {
-    // If chunk is standard
+}
+else {
+    // // If chunk is standard
+    // TODO! Change encoding of max to being chunk size - encode value
+    // this world be better because the min is 2x2x2
+    // there is always the option to encode 0 size
     let min_x = (lod & 0x1F);
-    let max_x = ((lod >> 15) & 0x1F << 1);
+    let max_x = (((lod >> 15) & 0x1F) << 1) + 2;
     let min_y = ((lod >> 5) & 0x1F);
-    let max_y = ((lod >> 20) & 0x1F) << 1;
+    let max_y = (((lod >> 20) & 0x1F) << 1) + 2;
     let min_z = ((lod >> 10) & 0x1F);
-    let max_z = ((lod >> 25) & 0x1F) << 1;
+    let max_z = (((lod >> 25) & 0x1F) << 1) + 2;
     
     let x = out.world_normal.x != 0.;
     let y = out.world_normal.y != 0.;
     let z = out.world_normal.z != 0.;
-    if x && (pos.x < (min_x + 1) || pos.x > (max_x + 1))
-    || y && (pos.y < (min_y + 1) || pos.y > (max_y + 1))
-    || z && (pos.z < (min_z + 1) || pos.z > (max_z + 1)) {
+    if x && (pos.x < (min_x) || pos.x > (max_x))
+    || y && (pos.y < (min_y) || pos.y > (max_y))
+    || z && (pos.z < (min_z) || pos.z > (max_z)) {
         // out.position = vec4<f32>(0.0, 0., -1.0, 0.0);
         // return out;
     }

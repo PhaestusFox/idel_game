@@ -170,9 +170,9 @@ impl ChunkData {
         let mut min_x = 31;
         let mut min_y = 31;
         let mut min_z = 31;
-        let mut max_x = 2;
-        let mut max_y = 2;
-        let mut max_z = 2;
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut max_z = 0;
         for z in 0..CHUNK_SIZE as u8 {
             for y in 0..CHUNK_SIZE as u8 {
                 for x in 0..CHUNK_SIZE as u8 {
@@ -214,7 +214,8 @@ pub struct Chunk {
 mod chunk_id;
 pub use chunk_id::ChunkId;
 
-pub fn make_baked_mesh() -> Mesh {
+pub fn make_baked_mesh(
+) -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
 
     let mut vertices = Vec::new();
