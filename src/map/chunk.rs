@@ -51,7 +51,7 @@ impl ChunkData {
                 depth_or_array_layers: CHUNK_SIZE as u32,
             },
             bevy::render::render_resource::TextureDimension::D3,
-            bevy::render::render_resource::TextureFormat::Rgba8Uint,
+            bevy::render::render_resource::TextureFormat::R8Uint,
             RenderAssetUsages::all(),
         );
         let vol = image.texture_descriptor.size.width
@@ -76,7 +76,7 @@ impl ChunkData {
                         error!("Failed to get pixel bytes for chunk image");
                         continue;
                     };
-                    if bytes.len() == 4 {
+                    if bytes.len() == 1 {
                         bytes[0] = block.block_type();
                     } else {
                         panic!(
@@ -99,7 +99,7 @@ impl ChunkData {
                 depth_or_array_layers: CHUNK_SIZE as u32,
             },
             bevy::render::render_resource::TextureDimension::D3,
-            bevy::render::render_resource::TextureFormat::Rgba8Uint,
+            bevy::render::render_resource::TextureFormat::R8Uint,
             RenderAssetUsages::all(),
         );
         let vol = image.texture_descriptor.size.width

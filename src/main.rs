@@ -40,10 +40,10 @@ fn main() {
     ));
     app.add_plugins(rendering::VoxelRenderingPlugin);
     app.init_state::<GameState>();
-    app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
-    app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
+    // app.add_plugins(bevy_inspector_egui::bevy_egui::EguiPlugin::default());
+    // app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
     app.add_systems(Update, quit);
-
+    app.add_systems(Update, bench_look);
     // app.add_systems(First, fly_forever);
 
     app.run();
@@ -70,4 +70,28 @@ fn quit(keyboard_input: Res<ButtonInput<KeyCode>>, mut app_exit_events: MessageW
 
 fn fly_forever(mut input: ResMut<ButtonInput<KeyCode>>) {
     input.press(KeyCode::KeyW);
+}
+
+fn bench_look(
+    mut player: Single<&mut Transform, With<player::PlayerEntity>>,
+    mut camera: Single<&mut Transform, (With<player::PlayerCamera>, Without<player::PlayerEntity>)>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    let mut set = None;
+    if input.just_pressed(KeyCode::Numpad8) {
+        set = Some(Quat::IDENTITY);
+    }
+    if input.just_pressed(KeyCode::Numpad4) {
+        set = Some(Quat::from_rotation_y(1.57));
+    }
+    if input.just_pressed(KeyCode::Numpad2) {
+        set = Some(Quat::from_rotation_y(3.1415));
+    }
+    if input.just_pressed(KeyCode::Numpad6) {
+        set = Some(Quat::from_rotation_y(-1.57));
+    }
+    if let Some(rotation) = set {
+        player.rotation = rotation;
+        camera.rotation = Quat::IDENTITY;
+    }
 }

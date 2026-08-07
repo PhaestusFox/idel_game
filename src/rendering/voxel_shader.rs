@@ -17,7 +17,7 @@ pub struct CustomMaterial {
     pub alpha_mode: AlphaMode,
     #[uniform(3)]
     pub lod: u32,
-    #[storage_texture(4, dimension = "3d", image_format = Rgba8Uint, access = ReadOnly, visibility(fragment, vertex))]
+    #[storage_texture(4, dimension = "3d", image_format = R8Uint, access = ReadOnly, visibility(fragment, vertex))]
     pub data: Handle<Image>,
 }
 

@@ -1,9 +1,10 @@
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: u32;
-@group(#{MATERIAL_BIND_GROUP}) @binding(4) var myTexture: texture_storage_3d<rgba8uint, read>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(4) var myTexture: texture_storage_3d<r8uint, read>;
 
 const chunk_size: u32 = 64;
 const recp_chunk_size: f32 = 1.0 / f32(chunk_size);
 
+#import bevy_pbr::mesh_view_bindings::view;
 #import bevy_pbr::{
     mesh_bindings::mesh,
     mesh_functions,
@@ -23,7 +24,7 @@ fn morph_vertex(vertex_in: Vertex, instance_index: u32) -> Vertex {
     let vertex_index = vertex.index - first_vertex;
 
     let weight_count = bevy_pbr::morph::layer_count(instance_index);
-    for (var i: u32 = 0u; i < weight_count; i ++) {
+    for (var i: u32 = 0u; i < weight_count; i++) {
         let weight = bevy_pbr::morph::weight_at(i, instance_index);
         if weight == 0.0 {
             continue;
@@ -58,10 +59,10 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
     // Use vertex_no_morph.instance_index instead of vertex.instance_index to work around a wgpu dx12 bug.
     // See https://github.com/gfx-rs/naga/issues/2416 .
     var world_from_local = skinning::skin_model(
-        vertex.joint_indices,
-        vertex.joint_weights,
-        vertex_no_morph.instance_index
-    );
+    vertex.joint_indices,
+    vertex.joint_weights,
+    vertex_no_morph.instance_index
+);
 #else
     var world_from_local = mesh_world_from_local;
 #endif
@@ -78,7 +79,6 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
     );
 #endif
 #endif
-
 
 let pos = resolve_pos(vertex_no_morph.position, chunk_size);
 
@@ -198,10 +198,8 @@ out.position = position_world_to_clip(out.world_position.xyz);
     out.visibility_range_dither = mesh_functions::get_visibility_range_dither_level(
         vertex_no_morph.instance_index, mesh_world_from_local[3]);
 #endif
-
     return out;
 }
-
 
 fn resolve_pos(position: vec3<f32>, chunk_size: u32) -> vec3u {
     return vec3u((position + 1.0) * f32(chunk_size) * 0.5);
@@ -229,3 +227,76 @@ fn get_block(pos: vec3u) -> u32 {
     //     }
     // };
 }
+
+
+struct ColorGrading {
+    balance: mat3x3<f32>,
+    saturation: vec3<f32>,
+    contrast: vec3<f32>,
+    gamma: vec3<f32>,
+    gain: vec3<f32>,
+    lift: vec3<f32>,
+    midtone_range: vec2<f32>,
+    exposure: f32,
+    hue: f32,
+    post_saturation: f32,
+}
+
+struct View {
+    clip_from_world: mat4x4<f32>,
+    unjittered_clip_from_world: mat4x4<f32>,
+    world_from_clip: mat4x4<f32>,
+    world_from_view: mat4x4<f32>,
+    view_from_world: mat4x4<f32>,
+    // Typically a column-major right-handed projection matrix, one of either:
+    //
+    // Perspective (infinite reverse z)
+    // ```
+    // f = 1 / tan(fov_y_radians / 2)
+    //
+    // ⎡ f / aspect  0   0     0 ⎤
+    // ⎢          0  f   0     0 ⎥
+    // ⎢          0  0   0  near ⎥
+    // ⎣          0  0  -1     0 ⎦
+    // ```
+    //
+    // Orthographic
+    // ```
+    // w = right - left
+    // h = top - bottom
+    // d = far - near
+    // cw = -right - left
+    // ch = -top - bottom
+    //
+    // ⎡ 2 / w      0      0   cw / w ⎤
+    // ⎢     0  2 / h      0   ch / h ⎥
+    // ⎢     0      0  1 / d  far / d ⎥
+    // ⎣     0      0      0        1 ⎦
+    // ```
+    //
+    // `clip_from_view[3][3] == 1.0` is the standard way to check if a projection is orthographic
+    //
+    // Wgsl matrices are column major, so for example getting the near plane of a perspective projection is `clip_from_view[3][2]`
+    //
+    // Custom projections are also possible however.
+    clip_from_view: mat4x4<f32>,
+    view_from_clip: mat4x4<f32>,
+    world_position: vec3<f32>,
+    exposure: f32,
+    // viewport(x_origin, y_origin, width, height)
+    viewport: vec4<f32>,
+    main_pass_viewport: vec4<f32>,
+    // 6 world-space half spaces (normal: vec3, distance: f32) ordered left, right, top, bottom, near, far.
+    // The normal vectors point towards the interior of the frustum.
+    // A half space contains `p` if `normal.dot(p) + distance > 0.`
+    frustum: array<vec4<f32>, 6>,
+    // The world-space position of the camera used to resolve visibility ranges.
+    //
+    // This is the position of the camera itself, unless this view isn't
+    // associated with a camera, in which case it's the position of the primary
+    // camera.
+    lod_view_world_position: vec3<f32>,
+    color_grading: ColorGrading,
+    mip_bias: f32,
+    frame_count: u32,
+};

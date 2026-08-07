@@ -6,7 +6,7 @@ const ERROR_COLOR: vec4<f32> = vec4<f32>(1.0, 0.0, 1.0,1.);
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var material_color_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var material_color_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> lod: u32;
-@group(#{MATERIAL_BIND_GROUP}) @binding(4) var myTexture: texture_storage_3d<rgba8uint, read>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(4) var myTexture: texture_storage_3d<r8uint, read>;
 
 @group(0) @binding(1) var<uniform> lights: Lights;
 
