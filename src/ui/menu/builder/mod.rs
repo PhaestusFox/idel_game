@@ -26,7 +26,7 @@ unsafe impl SystemParam for MenuBuilderState {
         _system_meta: &bevy::ecs::system::SystemMeta,
         world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell<'world>,
         _change_tick: bevy::ecs::change_detection::Tick,
-    ) -> Self::Item<'world, 'state> {
+    ) -> Result<Self::Item<'world, 'state>, bevy::ecs::system::SystemParamValidationError> {
         let root = unsafe {
             state
                 .query_unchecked(world)
@@ -39,7 +39,7 @@ unsafe impl SystemParam for MenuBuilderState {
                 .expect("No State<MenuId> found")
         };
 
-        Self { root, open }
+        Ok(Self { root, open })
     }
 
     fn init_state(world: &mut World) -> Self::State {
@@ -57,28 +57,28 @@ unsafe impl SystemParam for MenuBuilderState {
         component_access_set.add_unfiltered_resource_read(index);
     }
 
-    #[inline]
-    unsafe fn validate_param(
-        state: &mut Self::State,
-        _system_meta: &bevy::ecs::system::SystemMeta,
-        world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell,
-    ) -> Result<(), bevy::ecs::system::SystemParamValidationError> {
-        // SAFETY: State ensures that the components it accesses are not mutably accessible elsewhere
-        // and the query is read only.
-        // The caller ensures the world matches the one used in init_state.
-        let query = unsafe { state.query_unchecked(world) };
-        match query.single_inner() {
-            Ok(_) => Ok(()),
-            Err(bevy::ecs::query::QuerySingleError::NoEntities(_)) => Err(
-                bevy::ecs::system::SystemParamValidationError::skipped::<Self>("No MenuRoot Found"),
-            ),
-            Err(bevy::ecs::query::QuerySingleError::MultipleEntities(_)) => Err(
-                bevy::ecs::system::SystemParamValidationError::skipped::<Self>(
-                    "Multiple MenuRoots Found",
-                ),
-            ),
-        }
-    }
+    // #[inline]
+    // unsafe fn validate_param(
+    //     state: &mut Self::State,
+    //     _system_meta: &bevy::ecs::system::SystemMeta,
+    //     world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell,
+    // ) -> Result<(), bevy::ecs::system::SystemParamValidationError> {
+    //     // SAFETY: State ensures that the components it accesses are not mutably accessible elsewhere
+    //     // and the query is read only.
+    //     // The caller ensures the world matches the one used in init_state.
+    //     let query = unsafe { state.query_unchecked(world) };
+    //     match query.single_inner() {
+    //         Ok(_) => Ok(()),
+    //         Err(bevy::ecs::query::QuerySingleError::NoEntities(_)) => Err(
+    //             bevy::ecs::system::SystemParamValidationError::skipped::<Self>("No MenuRoot Found"),
+    //         ),
+    //         Err(bevy::ecs::query::QuerySingleError::MultipleEntities(_)) => Err(
+    //             bevy::ecs::system::SystemParamValidationError::skipped::<Self>(
+    //                 "Multiple MenuRoots Found",
+    //             ),
+    //         ),
+    //     }
+    // }
 }
 
 // helper functions for building menus
@@ -144,11 +144,11 @@ pub use slider::SliderSettings;
 use crate::ui::{MenuId, menu::MenuRoot};
 
 pub trait WidgetObserver<E: Event, M: Send + Sync + 'static>:
-    IntoObserverSystem<E, (), M> + Send + Sync + 'static
+    IntoObserverSystem<E, (), M> + Send + Sync + 'static + Clone
 {
 }
 
-impl<A, E, M> WidgetObserver<E, M> for A
+impl<A: Clone, E, M> WidgetObserver<E, M> for A
 where
     A: IntoObserverSystem<E, (), M> + Send + Sync + 'static,
     M: Send + Sync + 'static,

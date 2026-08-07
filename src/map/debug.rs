@@ -42,210 +42,211 @@ pub fn toggle_console(
 }
 
 fn open_console(mut commands: Commands) {
-    commands.spawn((
-        MapDebugConsole,
-        Node {
-            width: Val::Px(400.),
-            height: Val::Px(500.),
-            right: Val::Px(0.),
-            position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Column,
-            ..Default::default()
-        },
-        Name::new("Map Debug Console"),
-        BackgroundColor(Color::WHITE.darker(0.3)),
-        crate::ui::Anchor,
-        children![
-            (button(
-                ButtonProps {
-                    variant: ButtonVariant::Primary,
-                    ..Default::default()
-                },
-                observe(regenerate_chunks),
-                Spawn((Text::new("Regenerate Chunks"), ThemedText)),
-            )),
-            (
-                Node::DEFAULT,
-                children![
-                    slider(
-                        SliderProps {
-                            value: super::MAP_SIZE_X as f32,
-                            min: 0.,
-                            max: 20.
-                        },
-                        (
-                            Text::new("X:"),
-                            ThemedText,
-                            Set::X,
-                            SliderPrecision(0),
-                            observe(set_map_descriptor)
-                        ),
-                    ),
-                    slider(
-                        SliderProps {
-                            value: super::MAP_HIGHT as f32,
-                            min: 0.,
-                            max: 5.
-                        },
-                        (
-                            SliderPrecision(0),
-                            Text::new("Y:"),
-                            ThemedText,
-                            Set::Y,
-                            observe(set_map_descriptor)
-                        )
-                    ),
-                    slider(
-                        SliderProps {
-                            value: super::MAP_SIZE_Z as f32,
-                            min: 0.,
-                            max: 20.
-                        },
-                        (
-                            Text::new("Z:"),
-                            ThemedText,
-                            SliderPrecision(0),
-                            Set::Z,
-                            observe(set_map_descriptor)
-                        )
-                    )
-                ],
-            ),
-            (
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                children![
-                    slider(
-                        SliderProps {
-                            value: 6.,
-                            min: 1.,
-                            max: 10.
-                        },
-                        (
-                            Text::new("Octaves:"),
-                            ThemedText,
-                            Set::Ocataves,
-                            SliderPrecision(0),
-                            observe(set_map_descriptor)
-                        ),
-                    ),
-                    slider(
-                        SliderProps {
-                            value: 1.,
-                            min: 0.01,
-                            max: 5.
-                        },
-                        (
-                            SliderPrecision(2),
-                            Text::new("Frequency:"),
-                            ThemedText,
-                            Set::Frequency,
-                            observe(set_map_descriptor)
-                        )
-                    ),
-                    slider(
-                        SliderProps {
-                            value: (PI * 2.) / 3., // 2.0 * PI / 3.0
-                            min: 0.5,
-                            max: 4.
-                        },
-                        (
-                            Text::new("Lacunarity:"),
-                            ThemedText,
-                            Set::Lacunarity,
-                            observe(set_map_descriptor)
-                        )
-                    ),
-                    slider(
-                        SliderProps {
-                            value: 0.5,
-                            min: -2.,
-                            max: 2.0
-                        },
-                        (
-                            Text::new("Persistence:"),
-                            ThemedText,
-                            SliderPrecision(2),
-                            Set::Persistence,
-                            observe(set_map_descriptor)
-                        )
-                    )
-                ],
-            ),
-            // debug biome
-            (
-                Node {
-                    flex_wrap: FlexWrap::Wrap,
-                    ..Default::default()
-                },
-                children![
-                    button(
-                        ButtonProps::default(),
-                        (super::DebugBiomeType::Height, observe(set_debug_biome)),
-                        Spawn((Text::new("Height"), ThemedText))
-                    ),
-                    button(
-                        ButtonProps::default(),
-                        (super::DebugBiomeType::Rainfall, observe(set_debug_biome)),
-                        Spawn((Text::new("Rainfall"), ThemedText))
-                    ),
-                    button(
-                        ButtonProps::default(),
-                        (super::DebugBiomeType::Fertility, observe(set_debug_biome)),
-                        Spawn((Text::new("Fertility"), ThemedText))
-                    ),
-                    button(
-                        ButtonProps::default(),
-                        (
-                            super::DebugBiomeType::GroundHeight2,
-                            observe(set_debug_biome)
-                        ),
-                        Spawn((Text::new("GroundHeight2"), ThemedText))
-                    ),
-                    button(
-                        ButtonProps::default(),
-                        (
-                            super::DebugBiomeType::GroundHeight3,
-                            observe(set_debug_biome)
-                        ),
-                        Spawn((Text::new("GroundHeight3"), ThemedText))
-                    ),
-                    button(
-                        ButtonProps::default(),
-                        (super::DebugBiomeType::RainShadow, observe(set_debug_biome)),
-                        Spawn((Text::new("RainShadow"), ThemedText))
-                    )
-                ]
-            ),
-            slider(
-                SliderProps {
-                    value: 1.,
-                    min: 1.,
-                    max: 10.,
-                },
-                (
-                    Text::new("Scale:"),
-                    ThemedText,
-                    SliderPrecision(0),
-                    Set::Scale,
-                    observe(set_debug_scale)
-                )
-            ),
-            // test biome
-            (
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                BiomeSetting(0),
-                children![
+    todo!("Reimplement map debug console");
+    // commands.spawn((
+    //     MapDebugConsole,
+    //     Node {
+    //         width: Val::Px(400.),
+    //         height: Val::Px(500.),
+    //         right: Val::Px(0.),
+    //         position_type: PositionType::Absolute,
+    //         flex_direction: FlexDirection::Column,
+    //         ..Default::default()
+    //     },
+    //     Name::new("Map Debug Console"),
+    //     BackgroundColor(Color::WHITE.darker(0.3)),
+    //     crate::ui::Anchor,
+    //     children![
+    //         (button(
+    //             ButtonProps {
+    //                 variant: ButtonVariant::Primary,
+    //                 ..Default::default()
+    //             },
+    //             observe(regenerate_chunks),
+    //             Spawn((Text::new("Regenerate Chunks"), ThemedText)),
+    //         )),
+    //         (
+    //             Node::DEFAULT,
+    //             children![
+    //                 slider(
+    //                     SliderProps {
+    //                         value: super::MAP_SIZE_X as f32,
+    //                         min: 0.,
+    //                         max: 20.
+    //                     },
+    //                     (
+    //                         Text::new("X:"),
+    //                         ThemedText,
+    //                         Set::X,
+    //                         SliderPrecision(0),
+    //                         observe(set_map_descriptor)
+    //                     ),
+    //                 ),
+    //                 slider(
+    //                     SliderProps {
+    //                         value: super::MAP_HIGHT as f32,
+    //                         min: 0.,
+    //                         max: 5.
+    //                     },
+    //                     (
+    //                         SliderPrecision(0),
+    //                         Text::new("Y:"),
+    //                         ThemedText,
+    //                         Set::Y,
+    //                         observe(set_map_descriptor)
+    //                     )
+    //                 ),
+    //                 slider(
+    //                     SliderProps {
+    //                         value: super::MAP_SIZE_Z as f32,
+    //                         min: 0.,
+    //                         max: 20.
+    //                     },
+    //                     (
+    //                         Text::new("Z:"),
+    //                         ThemedText,
+    //                         SliderPrecision(0),
+    //                         Set::Z,
+    //                         observe(set_map_descriptor)
+    //                     )
+    //                 )
+    //             ],
+    //         ),
+    //         (
+    //             Node {
+    //                 flex_direction: FlexDirection::Column,
+    //                 ..Default::default()
+    //             },
+    //             children![
+    //                 slider(
+    //                     SliderProps {
+    //                         value: 6.,
+    //                         min: 1.,
+    //                         max: 10.
+    //                     },
+    //                     (
+    //                         Text::new("Octaves:"),
+    //                         ThemedText,
+    //                         Set::Ocataves,
+    //                         SliderPrecision(0),
+    //                         observe(set_map_descriptor)
+    //                     ),
+    //                 ),
+    //                 slider(
+    //                     SliderProps {
+    //                         value: 1.,
+    //                         min: 0.01,
+    //                         max: 5.
+    //                     },
+    //                     (
+    //                         SliderPrecision(2),
+    //                         Text::new("Frequency:"),
+    //                         ThemedText,
+    //                         Set::Frequency,
+    //                         observe(set_map_descriptor)
+    //                     )
+    //                 ),
+    //                 slider(
+    //                     SliderProps {
+    //                         value: (PI * 2.) / 3., // 2.0 * PI / 3.0
+    //                         min: 0.5,
+    //                         max: 4.
+    //                     },
+    //                     (
+    //                         Text::new("Lacunarity:"),
+    //                         ThemedText,
+    //                         Set::Lacunarity,
+    //                         observe(set_map_descriptor)
+    //                     )
+    //                 ),
+    //                 slider(
+    //                     SliderProps {
+    //                         value: 0.5,
+    //                         min: -2.,
+    //                         max: 2.0
+    //                     },
+    //                     (
+    //                         Text::new("Persistence:"),
+    //                         ThemedText,
+    //                         SliderPrecision(2),
+    //                         Set::Persistence,
+    //                         observe(set_map_descriptor)
+    //                     )
+    //                 )
+    //             ],
+    //         ),
+    //         // debug biome
+    //         (
+    //             Node {
+    //                 flex_wrap: FlexWrap::Wrap,
+    //                 ..Default::default()
+    //             },
+    //             children![
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (super::DebugBiomeType::Height, observe(set_debug_biome)),
+    //                     Spawn((Text::new("Height"), ThemedText))
+    //                 ),
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (super::DebugBiomeType::Rainfall, observe(set_debug_biome)),
+    //                     Spawn((Text::new("Rainfall"), ThemedText))
+    //                 ),
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (super::DebugBiomeType::Fertility, observe(set_debug_biome)),
+    //                     Spawn((Text::new("Fertility"), ThemedText))
+    //                 ),
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (
+    //                         super::DebugBiomeType::GroundHeight2,
+    //                         observe(set_debug_biome)
+    //                     ),
+    //                     Spawn((Text::new("GroundHeight2"), ThemedText))
+    //                 ),
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (
+    //                         super::DebugBiomeType::GroundHeight3,
+    //                         observe(set_debug_biome)
+    //                     ),
+    //                     Spawn((Text::new("GroundHeight3"), ThemedText))
+    //                 ),
+    //                 button(
+    //                     ButtonProps::default(),
+    //                     (super::DebugBiomeType::RainShadow, observe(set_debug_biome)),
+    //                     Spawn((Text::new("RainShadow"), ThemedText))
+    //                 )
+    //             ]
+    //         ),
+    //         slider(
+    //             SliderProps {
+    //                 value: 1.,
+    //                 min: 1.,
+    //                 max: 10.,
+    //             },
+    //             (
+    //                 Text::new("Scale:"),
+    //                 ThemedText,
+    //                 SliderPrecision(0),
+    //                 Set::Scale,
+    //                 observe(set_debug_scale)
+    //             )
+    //         ),
+    //         // test biome
+    //         (
+    //             Node {
+    //                 flex_direction: FlexDirection::Column,
+    //                 ..Default::default()
+    //             },
+    //             BiomeSetting(0),
+    //             children![
 
-                ]
-            )
-        ],
-    ));
+    //             ]
+    //         )
+    //     ],
+    // ));
 }
 
 fn regenerate_chunks(
@@ -463,7 +464,6 @@ fn update_gen_time(
         }
     }
 }
-
 
 #[derive(Component)]
 pub struct BiomeSetting(usize);

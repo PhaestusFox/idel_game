@@ -1,0 +1,12 @@
+[0.18]
+Total chunk generation time: 112.69 seconds
+Average chunk generation time: 7.62 ms (14796 samples)
+Looking at 0 = 95AFps
+looking at 1.57 = 60AFps
+Looking at -3.141 = 85AFps
+[0.19]
+Total chunk generation time: 94.83 seconds
+Average chunk generation time: 7.69 ms (12330 samples)
+Looking at 0 = 83AFps
+Looking at 1.57 = 83AFps
+Looking at -3.141 = 93AFps

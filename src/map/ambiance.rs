@@ -12,7 +12,7 @@ pub fn plugin(app: &mut App) {
 fn spawn_sun(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             // lux::RAW_SUNLIGHT is recommended for use with this feature, since
             // other values approximate sunlight *post-scattering* in various
             // conditions. RAW_SUNLIGHT in comparison is the illuminance of the
@@ -27,7 +27,7 @@ fn spawn_sun(mut commands: Commands) {
 
     commands.spawn((
         DirectionalLight {
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             color: Color::linear_rgb(0.1, 1., 1.),
             // lux::RAW_SUNLIGHT is recommended for use with this feature, since
             // other values approximate sunlight *post-scattering* in various

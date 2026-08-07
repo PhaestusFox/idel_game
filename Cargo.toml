@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = {version = "0.18", features = ["experimental_bevy_feathers", "serialize", "file_watcher"]}
+bevy = { version = "0.19", features = [
+    "bevy_feathers",
+    "serialize",
+    "file_watcher",
+] }
 # bevy = {git = "https://github.com/bevyengine/bevy.git", features = ["experimental_bevy_feathers", "serialize", "file_watcher"]}
 const-siphasher = "1.0.2"
 ron = "*"
@@ -12,7 +16,7 @@ serde = { version = "1.0", features = ["derive"] }
 rand = "*"
 indexmap = "*"
 noise = "*"
-bevy-inspector-egui = "*"
+bevy-inspector-egui = "0.37"
 
 [profile.dev.package."*"]
 opt-level = 3

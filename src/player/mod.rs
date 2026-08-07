@@ -2,7 +2,7 @@ use bevy::{
     anti_alias::fxaa::Fxaa,
     input::mouse::AccumulatedMouseMotion,
     light::VolumetricFog,
-    pbr::{Atmosphere, AtmosphereSettings, ScatteringMedium},
+    pbr::AtmosphereSettings,
     post_process::bloom::Bloom,
     prelude::*,
     window::{CursorOptions, PrimaryWindow},
@@ -10,7 +10,7 @@ use bevy::{
 
 use crate::{
     GameState,
-    map::{CHUNK_SIZE, ChunkBlock, ChunkGenerator, ChunkId},
+    map::{CHUNK_SIZE, ChunkBlock, ChunkGenerator, ChunkId, WorldOffset},
     physics::Weightless,
 };
 
@@ -43,10 +43,10 @@ impl Plugin for PlayerPlugin {
 
         app.add_observer(move_the_universe_not_the_ship)
             .add_systems(First, detect_chunk_transition)
-            .init_resource::<ChunkId>();
+            .init_resource::<WorldOffset>();
         app.add_systems(
             Update,
-            update_visible_chunks.run_if(resource_changed::<ChunkId>),
+            update_visible_chunks.run_if(resource_changed::<WorldOffset>),
         );
         app.init_resource::<RenderDistance>();
     }
@@ -72,11 +72,12 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
             Name::new("PlayerCamera"),
             Camera3d::default(),
             Transform::from_xyz(0.0, 1.75, 0.).looking_at(Vec3::ZERO, Vec3::Y),
-            Atmosphere {
-                top_radius: 6_560_000.,
-                bottom_radius: 6_360_000.,
+            bevy::light::Atmosphere {
+                inner_radius: 6_560_000.,
+                outer_radius: 6_360_000.,
                 ground_albedo: Vec3::new(0.1, 0.3, 0.1),
-                medium: asset_server.add(ScatteringMedium::earthlike(128, 128)),
+                medium: asset_server
+                    .add(bevy::light::atmosphere::ScatteringMedium::earth(128, 128)),
             },
             AtmosphereSettings::default(),
             Bloom::NATURAL,
@@ -140,7 +141,7 @@ pub fn detect_chunk_transition(
 
 fn move_the_universe_not_the_ship(
     trigger: On<MoveWorld>,
-    mut world_offset: ResMut<ChunkId>,
+    mut world_offset: ResMut<crate::map::WorldOffset>,
     mut player: Single<&mut Transform, With<PlayerEntity>>,
     mut transforms: Query<&mut Transform, (With<ChunkBlock>, Without<PlayerEntity>)>,
 ) {
@@ -148,7 +149,7 @@ fn move_the_universe_not_the_ship(
     for mut block in &mut transforms {
         block.translation -= trigger.offset();
     }
-    *world_offset += trigger.0;
+    world_offset.0 += trigger.0;
 }
 
 #[derive(Event, Deref)]
@@ -235,12 +236,12 @@ impl std::cmp::PartialOrd<u32> for RenderDistance {
 }
 
 fn update_visible_chunks(
-    offset: Res<ChunkId>,
+    offset: Res<WorldOffset>,
     view_distance: Res<RenderDistance>,
     chunks: Query<(&ChunkBlock, &mut Visibility)>,
 ) {
     for (chunk_id, mut visibility) in chunks {
-        let distance = chunk_id.distance(*offset);
+        let distance = chunk_id.distance(offset.0);
         if *view_distance < distance {
             *visibility = Visibility::Hidden;
         } else {

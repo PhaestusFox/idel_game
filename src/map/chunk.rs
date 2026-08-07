@@ -3,7 +3,7 @@ use std::ops::{Add, AddAssign, Div, Sub};
 use bevy::{
     asset::RenderAssetUsages,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
-    image::{TextureFormatPixelInfo, Volume},
+    image::TextureFormatPixelInfo,
     mesh::PrimitiveTopology,
     render::render_resource::Extent3d,
 };
@@ -54,11 +54,14 @@ impl ChunkData {
             bevy::render::render_resource::TextureFormat::Rgba8Uint,
             RenderAssetUsages::all(),
         );
+        let vol = image.texture_descriptor.size.width
+            * image.texture_descriptor.size.height
+            * image.texture_descriptor.size.depth_or_array_layers;
         let data = vec![
             0;
             image.texture_descriptor.format.pixel_size().expect(
                 "Failed to create Image: can't get pixel size for this TextureFormat"
-            ) * image.texture_descriptor.size.volume()
+            ) * vol as usize
         ];
         image.data = Some(data);
         image.texture_descriptor.usage |=
@@ -68,8 +71,7 @@ impl ChunkData {
             for x in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
                     let block = self.get_block(x as u8, y as u8, z as u8);
-                    let Some(bytes) =
-                        image.pixel_bytes_mut(UVec3::new(x as u32, y as u32, z as u32))
+                    let Ok(bytes) = image.pixel_bytes_mut(UVec3::new(x as u32, y as u32, z as u32))
                     else {
                         error!("Failed to get pixel bytes for chunk image");
                         continue;
@@ -100,11 +102,14 @@ impl ChunkData {
             bevy::render::render_resource::TextureFormat::Rgba8Uint,
             RenderAssetUsages::all(),
         );
+        let vol = image.texture_descriptor.size.width
+            * image.texture_descriptor.size.height
+            * image.texture_descriptor.size.depth_or_array_layers;
         let data = vec![
             0;
             image.texture_descriptor.format.pixel_size().expect(
                 "Failed to create Image: can't get pixel size for this TextureFormat"
-            ) * image.texture_descriptor.size.volume()
+            ) * vol as usize
         ];
         image.data = Some(data);
         image.texture_descriptor.usage |=
@@ -214,8 +219,7 @@ pub struct Chunk {
 mod chunk_id;
 pub use chunk_id::ChunkId;
 
-pub fn make_baked_mesh(
-) -> Mesh {
+pub fn make_baked_mesh() -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
 
     let mut vertices = Vec::new();

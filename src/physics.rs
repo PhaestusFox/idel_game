@@ -166,11 +166,11 @@ fn update_grounded(
     map: Res<ChunkLookup>,
     data: Res<Assets<ChunkData>>,
     chunks: Query<&Chunk>,
-    world_offset: Res<ChunkId>,
+    world_offset: Res<crate::map::WorldOffset>,
 ) {
     for (mut grounded, transform) in &mut objects {
         let pos = transform.translation.floor() - Vec3::Y + Vec3::splat(CHUNK_SIZE as f32 * 0.5);
-        let chunk_id = ChunkId::from_translation(pos) + *world_offset;
+        let chunk_id = ChunkId::from_translation(pos) + world_offset.0;
         let Some(chunk_entity) = map.get(&chunk_id) else {
             **grounded = true;
             continue;

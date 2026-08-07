@@ -1,5 +1,5 @@
 use bevy::{
-    feathers::controls::{SliderProps, slider},
+    feathers::controls::FeathersSlider,
     ui_widgets::{SliderPrecision, SliderStep, ValueChange},
 };
 
@@ -37,7 +37,7 @@ impl SliderSettings {
 // Slider implementation
 impl MenuBuilder<'_, '_> {
     #[inline(always)]
-    pub fn add_slider<B: Bundle, M, I>(
+    pub fn add_slider<B: Bundle, M, I: Clone>(
         &mut self,
         on_change: I,
         settings: SliderSettings,
@@ -48,7 +48,7 @@ impl MenuBuilder<'_, '_> {
     {
         self.add_slider_with_ext(on_change, settings, ())
     }
-    pub fn add_slider_with_ext<B: Bundle, OB: Bundle, M, I>(
+    pub fn add_slider_with_ext<B: Bundle, OB: Bundle, M, I: Clone>(
         &mut self,
         on_change: I,
         settings: SliderSettings,
@@ -58,22 +58,34 @@ impl MenuBuilder<'_, '_> {
         I: IntoObserverSystem<ValueChange<f32>, OB, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
-        let mut c = self.commands.spawn(slider(
-            SliderProps {
-                value: settings.current,
-                min: settings.min,
-                max: settings.max,
-            },
-            (
-                observe(on_change),
-                bundle,
-                ChildOf(self.root()),
-                SliderPrecision(settings.precision.unwrap_or(1)),
-            ),
-        ));
-        if let Some(step) = settings.step {
-            c.insert(SliderStep(step));
-        }
+        let root = self.root();
+        let exit = self.current_open();
+        self.commands
+            .spawn_scene(bsn! {
+                @FeathersSlider {
+
+                }
+                ChildOf(root)
+                DespawnOnExit::<MenuId>(exit)
+                on(on_change)
+            })
+            .insert(bundle);
+        // let mut c = self.commands.spawn(slider(
+        //     SliderProps {
+        //         value: settings.current,
+        //         min: settings.min,
+        //         max: settings.max,
+        //     },
+        //     (
+        //         observe(on_change),
+        //         bundle,
+        //         ChildOf(self.root()),
+        //         SliderPrecision(settings.precision.unwrap_or(1)),
+        //     ),
+        // ));
+        // if let Some(step) = settings.step {
+        //     c.insert(SliderStep(step));
+        // }
         self
     }
 }

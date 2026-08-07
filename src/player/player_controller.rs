@@ -1,7 +1,7 @@
 use bevy::state::commands;
 
 use crate::{
-    map::{Block, Map},
+    map::{Block, Map, WorldOffset},
     physics::{self, Grounded, PhysicsStep, Velocity},
     player::reycast::SolidHitMode,
 };
@@ -114,7 +114,7 @@ fn debug_ray(
     ray_cast: super::reycast::Raycast,
     input: Res<ButtonInput<MouseButton>>,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
-    offset: Res<ChunkId>,
+    offset: Res<WorldOffset>,
     old: Query<Entity, With<RayGizmo>>,
     mut commands: Commands,
     mut gizmos: ResMut<Assets<GizmoAsset>>,

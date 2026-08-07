@@ -28,7 +28,7 @@ impl Plugin for MapPlugin {
 
         app.add_systems(
             Update,
-            (remove_far_chunks, check_need_generate).run_if(resource_changed::<ChunkId>),
+            (remove_far_chunks, check_need_generate).run_if(resource_changed::<WorldOffset>),
         );
         app.init_resource::<PersistenceDistance>();
     }
@@ -39,7 +39,6 @@ mod chunk;
 mod map_gen;
 pub use chunk::*;
 use indexmap::IndexSet;
-use map_gen::biomes::*;
 mod ambiance;
 
 use crate::player::RenderDistance;
@@ -47,7 +46,7 @@ use crate::rendering::CustomMaterial;
 
 const MAP_SIZE_Z: i32 = 22;
 const MAP_SIZE_X: i32 = 22;
-const MAP_HIGHT: i32 = 6;
+const MAP_HIGHT: i32 = 5;
 const MAP_DEPTH: i32 = -1;
 fn spawn_test_chunk(mut chunk_manager: ResMut<ChunkGenerator>, map: Res<MapDescriptor>) {
     for x in -map.world_size.x..map.world_size.x {
@@ -153,7 +152,7 @@ impl LoD {
 
     fn id(&self) -> u32 {
         self.0
-    } 
+    }
 }
 
 impl ChunkGenerator {
@@ -270,6 +269,9 @@ impl ChunkGenerator {
     }
 }
 
+#[derive(Resource, Deref, DerefMut, Clone, Copy, Default)]
+pub struct WorldOffset(pub ChunkId);
+
 fn update_mesh_generator(
     mut mesh_generator: ResMut<ChunkGenerator>,
     mut commands: Commands,
@@ -279,7 +281,7 @@ fn update_mesh_generator(
     mut done: Local<bool>,
     lookup: Res<ChunkLookup>,
     max_distance: Res<GenerationDistance>,
-    offset: Res<ChunkId>,
+    offset: Res<WorldOffset>,
 ) {
     let mut tasks = std::mem::take(&mut mesh_generator.tasks);
     for (id, task) in tasks.drain() {
@@ -293,7 +295,7 @@ fn update_mesh_generator(
                 continue;
             };
             let data = bevy::tasks::block_on(task.cancel()).expect("checked was finished");
-            let Some(material) = mashes.get_mut(material.id()) else {
+            let Some(mut material) = mashes.get_mut(material.id()) else {
                 error!("CustomMaterial asset was removed before mesh generation finished");
                 continue;
             };
@@ -364,7 +366,7 @@ fn update_mesh_generator(
     mesh_generator.generate(
         &mut commands,
         asset_server,
-        *offset,
+        offset.0,
         &lookup,
         max_distance.0,
     );
@@ -461,7 +463,7 @@ impl ChunkBlock {
     }
 
     pub fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
-        let offset = *world.resource::<ChunkId>();
+        let offset = *world.resource::<WorldOffset>();
         let id = *world
             .get::<ChunkBlock>(ctx.entity)
             .expect("ChunkBlock just Inserted");
@@ -478,8 +480,8 @@ impl ChunkBlock {
             .get_mut::<Transform>(ctx.entity)
             .expect("Transform is required")
             .translation = id.world_pos() - offset.offset();
-        let offset = world.resource::<ChunkId>();
-        let distance = id.chebyshev_distance(*offset);
+        let offset = world.resource::<WorldOffset>();
+        let distance = id.chebyshev_distance(offset.0);
         let view = world.resource::<RenderDistance>();
         if *view > distance {
             *world
@@ -514,14 +516,14 @@ impl std::ops::Sub<ChunkBlock> for ChunkId {
 pub struct Map<'w, 's> {
     pub lookup: Res<'w, ChunkLookup>,
     pub data: Res<'w, Assets<ChunkData>>,
-    pub world_offset: Res<'w, ChunkId>,
+    pub world_offset: Res<'w, WorldOffset>,
     pub chunks: Query<'w, 's, &'static Chunk>,
 }
 
 impl<'w, 's> Map<'w, 's> {
     pub fn get_block(&self, pos: Vec3) -> Result<Block, MapError> {
         let pos = pos.floor() + Vec3::splat(CHUNK_SIZE as f32 * 0.5);
-        let chunk_id = ChunkId::from_translation(pos) + *self.world_offset;
+        let chunk_id = ChunkId::from_translation(pos) + self.world_offset.0;
         let chunk_data = self.get_chunk_data(chunk_id)?;
         let foot = (pos).as_ivec3().rem_euclid(IVec3::splat(CHUNK_SIZE as i32));
         let block = chunk_data.get_block(foot.x as u8, foot.y as u8, foot.z as u8);
@@ -574,13 +576,13 @@ impl PartialOrd<GenerationDistance> for u32 {
 }
 
 fn check_need_generate(
-    offset: Res<ChunkId>,
+    offset: Res<WorldOffset>,
     mut generator: ResMut<ChunkGenerator>,
     lookup: Res<ChunkLookup>,
     max_distance: Res<GenerationDistance>,
     map: Res<MapDescriptor>,
 ) {
-    let n = IVec3::splat(max_distance.0 as i32) + **offset;
+    let n = IVec3::splat(max_distance.0 as i32) + *offset.0;
 
     for x in -n.x..=n.x {
         let w = max_distance.0 as i32 - x.abs();
@@ -621,13 +623,13 @@ impl PartialOrd<PersistenceDistance> for u32 {
 }
 
 fn remove_far_chunks(
-    offset: Res<ChunkId>,
+    offset: Res<WorldOffset>,
     persistence_distance: Res<PersistenceDistance>,
     chunks: Query<(Entity, &ChunkId)>,
     mut commands: Commands,
 ) {
     for (entity, chunk_id) in &chunks {
-        let distance = chunk_id.chebyshev_distance(**offset);
+        let distance = chunk_id.chebyshev_distance(*offset.0);
         if distance > persistence_distance.0 {
             commands.entity(entity).despawn();
         }

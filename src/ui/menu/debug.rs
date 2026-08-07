@@ -75,7 +75,7 @@ unsafe impl SystemParam for DebugMenuState {
         _system_meta: &bevy::ecs::system::SystemMeta,
         world: bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell<'world>,
         _change_tick: bevy::ecs::change_detection::Tick,
-    ) -> Self::Item<'world, 'state> {
+    ) -> Result<Self::Item<'world, 'state>, bevy::ecs::system::SystemParamValidationError> {
         let mut state = DebugMenuState {
             show_fps: false,
             cap_60: false,
@@ -128,7 +128,7 @@ unsafe impl SystemParam for DebugMenuState {
                 .iter()
                 .any(|c| !c.is_empty());
         }
-        state
+        Ok(state)
     }
 }
 
@@ -299,7 +299,7 @@ fn toggle_local(
 fn update_pos_text(
     mut pos_text: Query<(&PosText, &mut Text)>,
     player: Single<&Transform, With<PlayerEntity>>,
-    offset: Res<ChunkId>,
+    offset: Res<crate::map::WorldOffset>,
 ) {
     for (pos, mut text) in &mut pos_text {
         match pos {
@@ -319,7 +319,7 @@ fn update_pos_text(
             PosText::ChunkId => {
                 text.0 = format!(
                     "In {}",
-                    ChunkId::from_translation(player.translation) + *offset
+                    ChunkId::from_translation(player.translation) + **offset
                 );
             }
         }

@@ -1,10 +1,10 @@
 use super::*;
-use bevy::{feathers::controls::checkbox, ui::Checked, ui_widgets::ValueChange};
+use bevy::{feathers::controls::FeathersCheckbox, ui::Checked, ui_widgets::ValueChange};
 
 // Checkbox implementation
 impl MenuBuilder<'_, '_> {
     #[inline(always)]
-    pub fn add_checkbox<B: Bundle, M, I>(
+    pub fn add_checkbox<B: Bundle, M, I: Clone>(
         &mut self,
         label: impl Into<String>,
         on_check: I,
@@ -17,7 +17,7 @@ impl MenuBuilder<'_, '_> {
     }
 
     #[inline(always)]
-    pub fn add_checkbox_with_state<B: Bundle, M, I>(
+    pub fn add_checkbox_with_state<B: Bundle, M, I: Clone>(
         &mut self,
         label: impl Into<String>,
         on_check: I,
@@ -34,7 +34,7 @@ impl MenuBuilder<'_, '_> {
         }
     }
 
-    pub fn add_checkbox_with_ext<B: Bundle, OB: Bundle, M, I>(
+    pub fn add_checkbox_with_ext<B: Bundle, OB: Bundle, M, I: Clone>(
         &mut self,
         label: impl Into<String>,
         on_check: I,
@@ -44,14 +44,26 @@ impl MenuBuilder<'_, '_> {
         I: IntoObserverSystem<ValueChange<bool>, OB, M> + Send + Sync + 'static,
         M: Send + Sync + 'static,
     {
-        let close = DespawnOnExit(self.current_open());
-        self.commands.spawn((
-            checkbox((), Spawn((Text::new(label), ThemedText))),
-            observe(on_check),
-            close,
-            bundle,
-            ChildOf(self.root()),
-        ));
+        let close = self.current_open();
+        let root = self.root();
+        let label = label.into();
+        self.commands
+            .spawn_scene(bsn! {
+                @FeathersCheckbox {
+                    @caption: bsn!((Text::new(label) ThemedText)),
+                }
+                ChildOf(root)
+                DespawnOnExit::<MenuId>(close)
+                on(on_check)
+            })
+            .insert(bundle);
+        // self.commands.spawn((
+        //     checkbox((), Spawn((Text::new(label), ThemedText))),
+        //     observe(on_check),
+        //     close,
+        //     bundle,
+        //     ChildOf(self.root()),
+        // ));
         self
     }
 }

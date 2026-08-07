@@ -1,6 +1,6 @@
 pub use super::*;
 
-#[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash, Resource)]
+#[derive(Component, Deref, DerefMut, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[component(on_insert = Self::on_insert, on_remove = Self::on_remove)]
 #[require(Transform)]
 pub struct ChunkId(IVec3);
